@@ -241,12 +241,34 @@ async def chat(
             await session_repo.set_title(session.id, title)
             await db.commit()
         
+        # Build sources from retrieved context
+        sources = None
+        if retrieved_context:
+            # Get document info for sources
+            from sqlalchemy import select
+            from src.db.models import Document
+            
+            doc_ids = list(set(r["document_id"] for r in retrieved_context))
+            doc_query = select(Document).where(Document.id.in_(doc_ids))
+            doc_result = await db.execute(doc_query)
+            docs = {d.id: d for d in doc_result.scalars().all()}
+            
+            sources = [
+                {
+                    "document_id": r["document_id"],
+                    "filename": docs.get(r["document_id"], type("", (), {"filename": "unknown"})).filename,
+                    "score": round(r["score"], 3),
+                    "excerpt": r["text"][:200] + "..." if len(r["text"]) > 200 else r["text"],
+                }
+                for r in retrieved_context[:5]  # Top 5 sources
+            ]
+        
         return ChatResponse(
             session_id=session.id,
             message_id=assistant_message.id,
             content=response.content,
             model=response.model,
-            sources=None,  # TODO: Add sources from RAG
+            sources=sources,
             usage={
                 "prompt_tokens": response.prompt_tokens,
                 "completion_tokens": response.completion_tokens,

@@ -22,6 +22,8 @@ dependencies = [
     "redis>=5.2.0",
     # Vector DB
     "qdrant-client>=1.13.0",
+    # Numerical computing (for semantic cache similarity)
+    "numpy>=1.26.0",
     # Azure AI
     "azure-ai-projects>=1.0.0b5",
     "azure-identity>=1.19.0",

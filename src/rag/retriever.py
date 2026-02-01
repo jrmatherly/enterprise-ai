@@ -1,13 +1,18 @@
 """RAG Retriever - semantic search with access control.
 
 Combines embedding and vector search for document retrieval.
+Includes optional semantic caching.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from src.rag.vector_store import VectorStore, get_vector_store
 from src.rag.embedder import Embedder, get_embedder
+from src.core.config import get_settings
+
+if TYPE_CHECKING:
+    from src.rag.semantic_cache import SemanticCache
 
 
 @dataclass
@@ -25,16 +30,19 @@ class Retriever:
     """Semantic retrieval with access control.
     
     Coordinates embedding generation and vector search
-    with per-user ACL filtering.
+    with per-user ACL filtering. Optionally uses semantic caching.
     """
     
     def __init__(
         self,
         vector_store: VectorStore,
         embedder: Embedder,
+        cache: Optional["SemanticCache"] = None,
     ):
         self.vector_store = vector_store
         self.embedder = embedder
+        self.cache = cache
+        self._cache_enabled = get_settings().semantic_cache_enabled
     
     async def retrieve(
         self,
@@ -45,6 +53,7 @@ class Retriever:
         group_ids: Optional[list[str]] = None,
         limit: int = 5,
         score_threshold: float = 0.5,
+        use_cache: bool = True,
     ) -> list[RetrievedChunk]:
         """Retrieve relevant chunks for a query.
         
@@ -56,6 +65,7 @@ class Retriever:
             group_ids: User's group memberships
             limit: Max chunks per knowledge base
             score_threshold: Minimum similarity score
+            use_cache: Whether to use semantic cache
             
         Returns:
             List of relevant chunks, sorted by score
@@ -65,6 +75,25 @@ class Retriever:
         
         if not knowledge_base_ids:
             return []
+        
+        # Check semantic cache first
+        cache_key = f"{','.join(sorted(knowledge_base_ids))}:{user_id}"
+        if use_cache and self._cache_enabled and self.cache:
+            for kb_id in knowledge_base_ids:
+                cached = await self.cache.get(query, kb_id)
+                if cached:
+                    # Convert cached results back to RetrievedChunk
+                    return [
+                        RetrievedChunk(
+                            id=r.get("id", ""),
+                            text=r.get("text", ""),
+                            score=r.get("score", 0.0),
+                            document_id=r.get("document_id", ""),
+                            chunk_index=r.get("chunk_index", 0),
+                            metadata=r.get("metadata", {}),
+                        )
+                        for r in cached
+                    ]
         
         # Generate query embedding
         query_vector = await self.embedder.embed_query(query)
@@ -104,7 +133,29 @@ class Retriever:
         
         # Sort by score and limit total results
         all_results.sort(key=lambda x: x.score, reverse=True)
-        return all_results[:limit * 2]  # Return up to 2x the per-KB limit
+        final_results = all_results[:limit * 2]  # Return up to 2x the per-KB limit
+        
+        # Cache the results
+        if use_cache and self._cache_enabled and self.cache and final_results:
+            for kb_id in knowledge_base_ids:
+                await self.cache.set(
+                    query=query,
+                    kb_id=kb_id,
+                    results=[
+                        {
+                            "id": r.id,
+                            "text": r.text,
+                            "score": r.score,
+                            "document_id": r.document_id,
+                            "chunk_index": r.chunk_index,
+                            "metadata": r.metadata,
+                        }
+                        for r in final_results
+                    ],
+                    query_embedding=query_vector,
+                )
+        
+        return final_results
     
     def format_context(
         self,
@@ -172,8 +223,19 @@ async def get_retriever() -> Retriever:
     global _retriever
     
     if _retriever is None:
+        settings = get_settings()
         vector_store = get_vector_store()
         embedder = await get_embedder()
-        _retriever = Retriever(vector_store, embedder)
+        
+        # Initialize cache if enabled
+        cache = None
+        if settings.semantic_cache_enabled:
+            try:
+                from src.rag.semantic_cache import get_semantic_cache
+                cache = await get_semantic_cache()
+            except Exception as e:
+                print(f"Failed to initialize semantic cache: {e}")
+        
+        _retriever = Retriever(vector_store, embedder, cache)
     
     return _retriever

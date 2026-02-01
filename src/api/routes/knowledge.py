@@ -11,6 +11,7 @@ from sqlalchemy import select
 from src.api.deps import CurrentUser, DB
 from src.db.models import KnowledgeBase, KnowledgeBaseScope, Document, DocumentStatus
 from src.rag import get_vector_store, get_processor, get_retriever
+from src.rag.extractors import get_extractor, ExtractionError
 
 
 router = APIRouter()
@@ -321,15 +322,9 @@ async def upload_document(
             detail=f"Failed to verify knowledge base: {str(e)}"
         )
     
-    # Validate file type
-    allowed_types = {
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain",
-        "text/markdown",
-    }
-    
-    if file.content_type not in allowed_types:
+    # Validate file type using extractor
+    extractor = get_extractor()
+    if not extractor.supports(file.content_type):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file type: {file.content_type}. Allowed: PDF, DOCX, TXT, MD"
@@ -357,13 +352,13 @@ async def upload_document(
         await db.commit()
         await db.refresh(doc)
         
-        # Extract text based on file type
-        if file.content_type in ["text/plain", "text/markdown"]:
-            text = content.decode("utf-8")
-        else:
-            # TODO: Add PDF/DOCX extraction
+        # Extract text from document
+        extractor = get_extractor()
+        try:
+            text = extractor.extract(content, file.content_type)
+        except ExtractionError as e:
             doc.status = DocumentStatus.FAILED
-            doc.error_message = f"Text extraction not yet implemented for {file.content_type}"
+            doc.error_message = str(e)
             await db.commit()
             return DocumentResponse(
                 id=doc.id,
@@ -544,4 +539,93 @@ async def query_knowledge_base(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}"
+        )
+
+
+# ============================================
+# Cache Management Endpoints
+# ============================================
+
+class CacheStatsResponse(BaseModel):
+    """Cache statistics for a knowledge base."""
+    kb_id: str
+    entry_count: int
+    total_hits: int
+    max_entries: int
+    ttl_seconds: int
+    similarity_threshold: float
+
+
+@router.get("/knowledge-bases/{kb_id}/cache/stats", response_model=CacheStatsResponse)
+async def get_cache_stats(
+    kb_id: str,
+    user: CurrentUser,
+    db: DB,
+):
+    """Get semantic cache statistics for a knowledge base."""
+    # Verify KB exists and user has access
+    try:
+        kb_query = select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        result = await db.execute(kb_query)
+        kb = result.scalar_one_or_none()
+        
+        if not kb:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Knowledge base not found"
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify knowledge base"
+        )
+    
+    try:
+        from src.rag import get_semantic_cache
+        cache = await get_semantic_cache()
+        stats = await cache.get_stats(kb_id)
+        return CacheStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get cache stats: {str(e)}"
+        )
+
+
+@router.delete("/knowledge-bases/{kb_id}/cache", status_code=status.HTTP_204_NO_CONTENT)
+async def invalidate_cache(
+    kb_id: str,
+    user: CurrentUser,
+    db: DB,
+):
+    """Invalidate the semantic cache for a knowledge base."""
+    # Verify KB exists and user has access
+    try:
+        kb_query = select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        result = await db.execute(kb_query)
+        kb = result.scalar_one_or_none()
+        
+        if not kb:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Knowledge base not found"
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify knowledge base"
+        )
+    
+    try:
+        from src.rag import get_semantic_cache
+        cache = await get_semantic_cache()
+        await cache.invalidate(kb_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to invalidate cache: {str(e)}"
         )
