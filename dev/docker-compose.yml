@@ -1,0 +1,387 @@
+# Enterprise AI Platform - Development Stack
+#
+# This Docker Compose file sets up the complete local development environment.
+# Run with: docker compose up -d
+#
+# Services:
+# - backend: FastAPI application with hot reload
+# - frontend: Next.js application with hot reload
+# - PostgreSQL: Database for Langfuse and application state
+# - ClickHouse: OLAP database for Langfuse v3 traces/observations
+# - Redis: Caching, queueing, and session state
+# - Qdrant: Vector database for RAG
+# - Langfuse Web: LLM observability UI and API
+# - Langfuse Worker: Async event processing
+# - MinIO: S3-compatible blob storage
+#
+# Hot Reload:
+# - Backend: Source mounted at /app/src, uvicorn watches for changes
+# - Frontend: Source mounted at /app/src, next dev watches for changes
+#
+# Note: Langfuse v3 (Dec 2024+) requires ClickHouse, Redis, and S3/blob storage.
+# See: https://langfuse.com/self-hosting/upgrade/upgrade-guides/upgrade-v2-to-v3
+
+name: enterprise-ai-platform
+
+services:
+  # ============================================
+  # Backend - FastAPI Application
+  # ============================================
+  backend:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile.backend
+    container_name: eai-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot reload
+      - ../src:/app/src:ro
+      - ../scripts:/app/scripts:ro
+      - ../alembic:/app/alembic:ro
+      - ../alembic.ini:/app/alembic.ini:ro
+    environment:
+      # Database (use container hostname)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${APP_DB:-eai}
+      
+      # Redis (use component settings for container networking)
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ${REDIS_AUTH:-redissecret}
+      
+      # Qdrant
+      QDRANT_URL: http://qdrant:6333
+      
+      # Langfuse
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
+      LANGFUSE_HOST: http://langfuse-web:3000
+      
+      # OpenAI / Azure OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      
+      # App settings
+      APP_NAME: "Enterprise AI Platform"
+      DEBUG: "true"
+      LOG_LEVEL: "DEBUG"
+      
+      # Rate limits
+      RATE_LIMIT_TPM: ${RATE_LIMIT_TPM:-100000}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================
+  # Frontend - Next.js Application
+  # ============================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../dev/Dockerfile.frontend
+    container_name: eai-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    volumes:
+      # Mount source code for hot reload (exclude node_modules)
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+      - ../frontend/next.config.ts:/app/next.config.ts:ro
+      - ../frontend/tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ../frontend/postcss.config.mjs:/app/postcss.config.mjs:ro
+      - ../frontend/tsconfig.json:/app/tsconfig.json:ro
+    environment:
+      # API URL (internal docker network)
+      NEXT_PUBLIC_API_URL: ""
+      # Next.js rewrites to backend
+      BACKEND_URL: http://backend:8000
+      # Disable telemetry
+      NEXT_TELEMETRY_DISABLED: "1"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3001 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ============================================
+  # PostgreSQL - Primary Database
+  # ============================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: eai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-langfuse}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ============================================
+  # ClickHouse - OLAP Database (Langfuse v3)
+  # ============================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: eai-clickhouse
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+    ports:
+      - "127.0.0.1:8123:8123" # HTTP
+      - "127.0.0.1:9000:9000" # Native
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8123/ping",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ============================================
+  # Redis - Caching, Queueing & Session State
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: eai-redis
+    restart: unless-stopped
+    command: >
+      --requirepass ${REDIS_AUTH:-redissecret}
+      --maxmemory-policy noeviction
+      --appendonly yes
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      # Used by redis-cli for auth in healthcheck
+      REDISCLI_AUTH: ${REDIS_AUTH:-redissecret}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ============================================
+  # Qdrant - Vector Database for RAG
+  # ============================================
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: eai-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333" # REST API
+      - "127.0.0.1:6334:6334" # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__HTTP_PORT: 6333
+    healthcheck:
+      # Use bash /dev/tcp to check if HTTP port is accepting connections
+      # and responds with HTTP (simple healthcheck for minimal image)
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n\" >&3 && timeout 1 cat <&3 | grep -q \"200 OK\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ============================================
+  # MinIO - S3-Compatible Blob Storage
+  # ============================================
+  minio:
+    image: minio/minio:latest
+    container_name: eai-minio
+    restart: unless-stopped
+    entrypoint: sh
+    # Create the 'langfuse' bucket before starting the service
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    ports:
+      - "9090:9000" # S3 API (mapped to 9090 for external access)
+      - "127.0.0.1:9091:9001" # Console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ============================================
+  # Langfuse Web - UI and API (v3)
+  # ============================================
+  # NOTE: Web must start BEFORE worker - it runs Prisma migrations!
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: eai-langfuse-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment: &langfuse-env
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-langfuse}
+
+      # ClickHouse (required for v3)
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+      # Redis (required for v3)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: ${REDIS_AUTH:-redissecret}
+      REDIS_TLS_ENABLED: "false"
+
+      # Auth & Security
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-changeme-generate-random-secret}
+      SALT: ${SALT:-changeme-generate-random-salt}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+
+      # S3/Blob Storage (MinIO)
+      LANGFUSE_USE_AZURE_BLOB: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-miniosecret}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-miniosecret}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+      # Telemetry (disable for on-prem)
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+
+      # Optional: Initialize default org/project
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-}
+
+      # Disable sign-up in production
+      NEXT_PUBLIC_SIGN_UP_DISABLED: "false"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O- http://$(hostname):3000/api/public/health | grep -q OK",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================
+  # Langfuse Worker - Async Event Processing (v3)
+  # ============================================
+  # NOTE: Worker must start AFTER web - needs database tables from migrations!
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: eai-langfuse-worker
+    restart: unless-stopped
+    depends_on:
+      langfuse-web:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3030:3030"
+    environment:
+      <<: *langfuse-env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://$(hostname):3030/api/health | grep -qi ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+# ============================================
+# Named Volumes
+# ============================================
+volumes:
+  postgres_data:
+    name: eai_postgres_data
+  clickhouse_data:
+    name: eai_clickhouse_data
+  clickhouse_logs:
+    name: eai_clickhouse_logs
+  redis_data:
+    name: eai_redis_data
+  qdrant_data:
+    name: eai_qdrant_data
+  minio_data:
+    name: eai_minio_data
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  default:
+    name: eai-network

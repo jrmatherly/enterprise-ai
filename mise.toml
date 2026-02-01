@@ -1,0 +1,283 @@
+# mise-en-place configuration for Enterprise AI Platform
+# See: https://mise.jdx.dev/
+#
+# Usage:
+#   mise run <task>          # Run a task
+#   mise tasks               # List all tasks
+#
+# Quick Start:
+#   mise run setup           # First-time setup (install deps + start Docker + migrate DB)
+#   mise run dev             # Start development (Docker + API server)
+#   mise run stop            # Stop everything
+
+[tools]
+python = "3.12"
+uv = "latest"
+
+[env]
+# Automatically create and activate venv using uv
+_.python.venv = { path = ".venv", create = true }
+
+# uv settings
+UV_LINK_MODE = "copy"
+
+# ============================================
+# Setup & Development
+# ============================================
+
+[tasks.setup]
+description = "First-time setup: build containers, start Docker, run migrations"
+run = """
+echo "🐳 Building and starting Docker stack..."
+docker compose -f dev/docker-compose.yml up -d --build
+echo ""
+echo "⏳ Waiting for services to be ready..."
+sleep 10
+echo ""
+echo "🗃️  Running database migrations..."
+docker compose -f dev/docker-compose.yml exec backend uv run alembic upgrade head
+echo ""
+echo "✅ Setup complete!"
+echo ""
+echo "   Frontend: http://localhost:3001"
+echo "   Backend:  http://localhost:8000"
+echo "   Docs:     http://localhost:8000/docs"
+echo "   Langfuse: http://localhost:3000"
+"""
+
+[tasks.dev]
+description = "Start all services in Docker with hot reload"
+run = """
+echo "🐳 Starting all services..."
+docker compose -f dev/docker-compose.yml up -d
+echo ""
+echo "✅ Services starting!"
+echo ""
+echo "   Frontend: http://localhost:3001"
+echo "   Backend:  http://localhost:8000 (API docs: /docs)"
+echo "   Langfuse: http://localhost:3000"
+echo ""
+echo "📝 View logs with: mise run logs"
+echo "🔄 Hot reload is enabled - edit code and changes apply automatically"
+"""
+
+[tasks.dev-local]
+description = "Start infra in Docker, run backend/frontend locally (old workflow)"
+run = """
+echo "🐳 Starting infrastructure only..."
+docker compose -f dev/docker-compose.yml up -d postgres redis qdrant clickhouse minio langfuse-web langfuse-worker
+echo ""
+echo "Run these in separate terminals:"
+echo "  Backend:  uv run uvicorn src.api.main:app --reload --port 8000"
+echo "  Frontend: cd frontend && npm run dev"
+"""
+
+[tasks.stop]
+description = "Stop all Docker services"
+run = "docker compose -f dev/docker-compose.yml down"
+
+[tasks.restart]
+description = "Restart all Docker services (preserves data)"
+run = "docker compose -f dev/docker-compose.yml restart"
+
+[tasks.rebuild]
+description = "Rebuild and restart backend/frontend containers"
+run = """
+echo "🔨 Rebuilding backend and frontend..."
+docker compose -f dev/docker-compose.yml up -d --build backend frontend
+echo "✅ Containers rebuilt and restarted"
+"""
+
+[tasks.logs]
+description = "Follow logs from all services"
+run = "docker compose -f dev/docker-compose.yml logs -f"
+
+[tasks.logs-app]
+description = "Follow logs from backend and frontend only"
+run = "docker compose -f dev/docker-compose.yml logs -f backend frontend"
+
+[tasks.reset]
+description = "Full reset: stop Docker, remove volumes, restart fresh"
+run = """
+echo "⚠️  This will delete all data (databases, caches, etc.)"
+echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+sleep 5
+docker compose -f dev/docker-compose.yml down -v
+docker compose -f dev/docker-compose.yml up -d --build
+echo "⏳ Waiting for services..."
+sleep 15
+docker compose -f dev/docker-compose.yml exec backend uv run alembic upgrade head
+echo "✅ Reset complete!"
+"""
+
+# ============================================
+# Dependency Management
+# ============================================
+
+[tasks.install]
+description = "Install production dependencies"
+run = "uv sync"
+
+[tasks.install-dev]
+description = "Install all dependencies including dev extras"
+run = "uv sync --all-extras"
+
+[tasks.update]
+description = "Update all dependencies to latest compatible versions"
+run = "uv sync --upgrade"
+
+# ============================================
+# API Server
+# ============================================
+
+[tasks.serve]
+description = "Run API server (no hot reload, production-like)"
+run = "uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000"
+
+[tasks.serve-reload]
+description = "Run API server with hot reload"
+run = "uv run uvicorn src.api.main:app --reload --port 8000"
+
+# ============================================
+# Code Quality
+# ============================================
+
+[tasks.test]
+description = "Run tests with pytest"
+run = "uv run pytest"
+
+[tasks.test-cov]
+description = "Run tests with coverage report"
+run = "uv run pytest --cov=src --cov-report=term-missing"
+
+[tasks.lint]
+description = "Run linting with ruff"
+run = "uv run ruff check src/"
+
+[tasks.lint-fix]
+description = "Run linting and auto-fix issues"
+run = "uv run ruff check src/ --fix"
+
+[tasks.format]
+description = "Format code with ruff"
+run = "uv run ruff format src/"
+
+[tasks.typecheck]
+description = "Run type checking with mypy"
+run = "uv run mypy src/"
+
+[tasks.check]
+description = "Run all checks: lint, format check, typecheck"
+run = """
+echo "🔍 Running lint..."
+uv run ruff check src/
+echo ""
+echo "🎨 Checking format..."
+uv run ruff format src/ --check
+echo ""
+echo "📝 Running typecheck..."
+uv run mypy src/
+echo ""
+echo "✅ All checks passed!"
+"""
+
+# ============================================
+# Docker Stack
+# ============================================
+
+[tasks.docker-up]
+description = "Start Docker development stack"
+run = "docker compose -f dev/docker-compose.yml up -d"
+
+[tasks.docker-down]
+description = "Stop Docker development stack"
+run = "docker compose -f dev/docker-compose.yml down"
+
+[tasks.docker-logs]
+description = "View Docker logs (follow mode)"
+run = "docker compose -f dev/docker-compose.yml logs -f"
+
+[tasks.docker-ps]
+description = "Show Docker container status"
+run = "docker compose -f dev/docker-compose.yml ps"
+
+# ============================================
+# Database Migrations (Alembic)
+# ============================================
+
+[tasks.db-migrate]
+description = "Generate a new migration from model changes (run locally)"
+run = "uv run alembic revision --autogenerate -m \"$@\""
+
+[tasks.db-upgrade]
+description = "Apply all pending migrations (in container)"
+run = "docker compose -f dev/docker-compose.yml exec backend uv run alembic upgrade head"
+
+[tasks.db-downgrade]
+description = "Rollback one migration (in container)"
+run = "docker compose -f dev/docker-compose.yml exec backend uv run alembic downgrade -1"
+
+[tasks.db-history]
+description = "Show migration history (in container)"
+run = "docker compose -f dev/docker-compose.yml exec backend uv run alembic history --verbose"
+
+[tasks.db-current]
+description = "Show current migration revision (in container)"
+run = "docker compose -f dev/docker-compose.yml exec backend uv run alembic current"
+
+[tasks.db-reset]
+description = "Reset database schema (in container)"
+run = "docker compose -f dev/docker-compose.yml exec backend sh -c 'uv run alembic downgrade base && uv run alembic upgrade head'"
+
+# ============================================
+# Utilities
+# ============================================
+
+[tasks.shell]
+description = "Open Python shell with app context"
+run = "uv run python -i -c 'from src.core.config import get_settings; settings = get_settings(); print(f\"Settings loaded: {settings.app_name}\")'"
+
+[tasks.seed]
+description = "Seed development data (tenant, user) - in container"
+run = "docker compose -f dev/docker-compose.yml exec backend uv run python scripts/seed_dev_data.py"
+
+[tasks.seed-local]
+description = "Seed development data (run locally, for dev-local workflow)"
+run = "uv run python scripts/seed_dev_data.py"
+
+# ============================================
+# Frontend (Next.js)
+# ============================================
+
+[tasks.ui]
+description = "Start frontend dev server locally (port 3001) - for dev-local workflow"
+run = "cd frontend && npm run dev"
+
+[tasks.ui-install]
+description = "Install frontend dependencies locally"
+run = "cd frontend && npm install"
+
+[tasks.ui-build]
+description = "Build frontend for production (in container)"
+run = "docker compose -f dev/docker-compose.yml exec frontend npm run build"
+
+[tasks.ui-lint]
+description = "Lint frontend code (in container)"
+run = "docker compose -f dev/docker-compose.yml exec frontend npm run lint"
+
+[tasks.ui-shell]
+description = "Open shell in frontend container"
+run = "docker compose -f dev/docker-compose.yml exec frontend sh"
+
+[tasks.backend-shell]
+description = "Open shell in backend container"
+run = "docker compose -f dev/docker-compose.yml exec backend bash"
+
+[tasks.chat]
+description = "Quick chat test via curl (uses dev bypass)"
+run = """
+curl -s -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -H "X-Dev-Bypass: true" \
+  -d '{"message": "Hello! What can you help me with?"}' | jq .
+"""
