@@ -13,7 +13,7 @@ interface ChatAreaProps {
 
 export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, isStreaming, streamingContent, error, sendMessage } = useChat({
+  const { messages, isStreaming, isLoadingHistory, streamingContent, error, sendMessage } = useChat({
     sessionId,
     onSessionCreated,
   });
@@ -26,7 +26,7 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
   }, [messages, streamingContent]);
 
   const handleSend = (content: string) => {
-    if (content.trim() && !isStreaming) {
+    if (content.trim() && !isStreaming && !isLoadingHistory) {
       sendMessage(content);
     }
   };
@@ -39,16 +39,23 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
         className="flex-1 overflow-y-auto px-4 py-6"
       >
         <div className="mx-auto max-w-3xl space-y-6">
-          {messages.length === 0 && !isStreaming && (
+          {isLoadingHistory ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="size-8 animate-spin rounded-full border-2 border-neutral-600 border-t-neutral-300" />
+              <p className="mt-4 text-sm text-neutral-500">Loading conversation...</p>
+            </div>
+          ) : messages.length === 0 && !isStreaming ? (
             <EmptyState />
-          )}
-          
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-          
-          {isStreaming && streamingContent && (
-            <StreamingMessage content={streamingContent} />
+          ) : (
+            <>
+              {messages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
+              
+              {isStreaming && streamingContent && (
+                <StreamingMessage content={streamingContent} />
+              )}
+            </>
           )}
           
           {error && (
@@ -64,7 +71,7 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
         <div className="mx-auto max-w-3xl">
           <MessageInput
             onSend={handleSend}
-            disabled={isStreaming}
+            disabled={isStreaming || isLoadingHistory}
             placeholder="Send a message..."
           />
         </div>

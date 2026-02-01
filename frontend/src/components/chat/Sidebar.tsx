@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils/cn';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { useSessions } from '@/lib/hooks/useSessions';
 
 interface SidebarProps {
   currentSessionId: string | null;
@@ -10,8 +11,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentSessionId, onSessionSelect, onNewChat }: SidebarProps) {
-  // TODO: Fetch sessions from API using useQuery
-  const sessions: Array<{ id: string; title: string; updatedAt: string }> = [];
+  const { data: sessions, isLoading, error } = useSessions();
 
   return (
     <div className="flex h-full flex-col">
@@ -40,7 +40,15 @@ export function Sidebar({ currentSessionId, onSessionSelect, onNewChat }: Sideba
 
       {/* Session List */}
       <div className="flex-1 overflow-y-auto px-3 pb-3">
-        {sessions.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="size-5 animate-spin rounded-full border-2 border-neutral-600 border-t-neutral-300" />
+          </div>
+        ) : error ? (
+          <div className="py-8 text-center text-xs text-red-400">
+            Failed to load sessions
+          </div>
+        ) : !sessions || sessions.length === 0 ? (
           <div className="py-8 text-center text-xs text-neutral-500">
             No conversations yet
           </div>
@@ -57,9 +65,11 @@ export function Sidebar({ currentSessionId, onSessionSelect, onNewChat }: Sideba
                     : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200'
                 )}
               >
-                <div className="truncate font-medium">{session.title}</div>
+                <div className="truncate font-medium">
+                  {session.title || 'New conversation'}
+                </div>
                 <div className="mt-0.5 text-xs text-neutral-500">
-                  {formatRelativeTime(session.updatedAt)}
+                  {formatRelativeTime(session.updated_at)}
                 </div>
               </button>
             ))}
