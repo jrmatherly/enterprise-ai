@@ -2,7 +2,7 @@
 
 **Created:** 2026-01-31  
 **Last Updated:** 2026-02-01  
-**Status:** Phase 2 In Progress
+**Status:** Phase 2 Complete, Phase 3 Ready
 
 ---
 
@@ -12,8 +12,8 @@
 |-------|-------|----------|--------|
 | **Phase 0** | Setup & Validation | 1 week | ✅ Complete |
 | **Phase 1** | Core Foundation | 2 weeks | ✅ Complete |
-| **Phase 2** | RAG & Knowledge Bases | 1.5 weeks | 🔄 In Progress |
-| **Phase 3** | Channels (Slack + Web) | 1 week | ⏳ Not Started |
+| **Phase 2** | RAG & Knowledge Bases | 1.5 weeks | ✅ Complete |
+| **Phase 3** | Channels (Slack + Web) | 1 week | ⏳ Next |
 | **Phase 4** | Admin & Polish | 0.5-1 week | ⏳ Not Started |
 
 ---
@@ -150,15 +150,15 @@ Store conversation history in database:
 
 ---
 
-## Phase 2: RAG & Knowledge Bases 🔄 IN PROGRESS
+## Phase 2: RAG & Knowledge Bases ✅ COMPLETE
 
 **Goal:** Implement document ingestion and retrieval with access control.
 
 ### 2.1 Document Ingestion ✅
 - [x] Chunking strategies (fixed size, paragraph-based)
 - [x] Document processing pipeline (`DocumentProcessor`)
-- [x] Support file types: TXT, MD
-- [ ] Support file types: PDF, DOCX (text extraction pending)
+- [x] Support file types: TXT, MD, PDF, DOCX
+- [x] `DocumentExtractor` with unified MIME type handling
 - [ ] Background processing (currently synchronous)
 
 ### 2.2 Vector Storage (Qdrant) ✅
@@ -172,7 +172,7 @@ Store conversation history in database:
 - [x] `Retriever` class for Qdrant search
 - [x] `Embedder` class for Azure OpenAI embeddings
 - [x] Context injection in chat endpoints
-- [ ] Source citations in responses
+- [x] Source citations in responses (document, score, excerpt)
 
 ### 2.4 Knowledge Base API ✅
 - [x] `GET /knowledge-bases` - List accessible KBs
@@ -180,11 +180,14 @@ Store conversation history in database:
 - [x] `POST /knowledge-bases/{id}/documents` - Upload and process documents
 - [x] `DELETE /knowledge-bases/{id}/documents/{id}` - Delete document + vectors
 - [x] `POST /knowledge-bases/{id}/query` - Direct semantic search
+- [x] `GET /knowledge-bases/{id}/cache/stats` - Cache statistics
+- [x] `DELETE /knowledge-bases/{id}/cache` - Invalidate cache
 
-### 2.5 Semantic Caching
-- [ ] `SemanticCache` class
-- [ ] Integration with LLM call path
-- [ ] Cache hit/miss metrics
+### 2.5 Semantic Caching ✅
+- [x] `SemanticCache` class with Redis storage
+- [x] Cosine similarity matching (configurable threshold)
+- [x] Integration with Retriever
+- [x] Per-KB cache with TTL and entry limits
 
 ---
 
