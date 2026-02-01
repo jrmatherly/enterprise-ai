@@ -6,9 +6,11 @@ See: MICROSOFT-REPOS-ANALYSIS.md for source patterns.
 
 from enum import Enum
 from functools import wraps
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from fastapi import HTTPException, Request, status
+
+from src.auth.oidc import UserClaims
 
 
 class AppRole(str, Enum):
@@ -103,6 +105,24 @@ def get_user_permissions(roles: list[str]) -> set[Permission]:
     return permissions
 
 
+def _extract_roles(user: Union[UserClaims, dict, None]) -> list[str]:
+    """Extract roles from a user object (UserClaims or dict).
+    
+    Args:
+        user: UserClaims dataclass, dict, or None
+        
+    Returns:
+        List of role names
+    """
+    if user is None:
+        return []
+    if isinstance(user, UserClaims):
+        return user.roles
+    if isinstance(user, dict):
+        return user.get("roles", [])
+    return []
+
+
 def has_permission(user_roles: list[str], required: Permission) -> bool:
     """Check if user has a specific permission.
     
@@ -145,7 +165,7 @@ class PermissionChecker:
                 detail="Not authenticated"
             )
         
-        user_roles = user.get("roles", [])
+        user_roles = _extract_roles(user)
         
         if not has_permission(user_roles, self.required):
             raise HTTPException(
@@ -191,7 +211,7 @@ def require_permission(permission: Permission) -> Callable:
                     detail="Not authenticated"
                 )
             
-            user_roles = user.get("roles", [])
+            user_roles = _extract_roles(user)
             
             if not has_permission(user_roles, permission):
                 raise HTTPException(
@@ -232,7 +252,7 @@ def require_any_permission(*permissions: Permission) -> Callable:
                     detail="Not authenticated"
                 )
             
-            user_roles = user.get("roles", [])
+            user_roles = _extract_roles(user)
             
             if not has_any_permission(user_roles, list(permissions)):
                 raise HTTPException(

@@ -5,13 +5,14 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.api.deps import (
     CurrentUser, Runtime, DB, RateLimiter,
     SessionRepo, MessageRepo, UsageRepo,
+    RequireUseAgent,
 )
 from src.agent.runtime import ChatMessage, ChatContext
 from src.core.rate_limiting import RateLimitExceeded
@@ -83,6 +84,7 @@ async def chat(
     session_repo: SessionRepo,
     message_repo: MessageRepo,
     usage_repo: UsageRepo,
+    _: bool = RequireUseAgent,
 ):
     """Send a message and get a response from the AI agent.
     
@@ -243,6 +245,7 @@ async def chat_stream(
     rate_limiter: RateLimiter,
     session_repo: SessionRepo,
     message_repo: MessageRepo,
+    _: bool = RequireUseAgent,
 ):
     """Stream a chat response using Server-Sent Events (SSE).
     
