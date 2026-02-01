@@ -14,7 +14,8 @@ export function middleware(request: NextRequest) {
   // Public paths that don't require authentication
   const publicPaths = [
     "/login",
-    "/api/auth",
+    "/api/auth",   // better-auth routes
+    "/api/v1",     // Backend API proxy (has its own auth)
     "/_next",
     "/favicon.ico",
   ];
