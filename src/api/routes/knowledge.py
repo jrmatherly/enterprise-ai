@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from src.api.deps import CurrentUser, DB
 from src.db.models import KnowledgeBase, KnowledgeBaseScope, Document, DocumentStatus
+from src.rag import get_vector_store, get_processor, get_retriever
 
 
 router = APIRouter()
@@ -159,11 +160,13 @@ async def create_knowledge_base(
     )
     
     try:
+        # Create Qdrant collection first
+        vector_store = get_vector_store()
+        await vector_store.create_collection(collection_name)
+        
         db.add(kb)
         await db.commit()
         await db.refresh(kb)
-        
-        # TODO: Create Qdrant collection
         
         return KnowledgeBaseResponse(
             id=kb.id,
@@ -348,12 +351,57 @@ async def upload_document(
     )
     
     try:
+        # Update status to processing
+        doc.status = DocumentStatus.PROCESSING
         db.add(doc)
         await db.commit()
         await db.refresh(doc)
         
-        # TODO: Upload to MinIO
-        # TODO: Queue for async processing
+        # Extract text based on file type
+        if file.content_type in ["text/plain", "text/markdown"]:
+            text = content.decode("utf-8")
+        else:
+            # TODO: Add PDF/DOCX extraction
+            doc.status = DocumentStatus.FAILED
+            doc.error_message = f"Text extraction not yet implemented for {file.content_type}"
+            await db.commit()
+            return DocumentResponse(
+                id=doc.id,
+                filename=doc.filename,
+                mime_type=doc.mime_type,
+                file_size_bytes=doc.file_size_bytes,
+                status=doc.status.value,
+                chunk_count=0,
+                created_at=doc.created_at.isoformat() + "Z",
+                processed_at=None,
+            )
+        
+        # Process document through RAG pipeline
+        processor = await get_processor()
+        result = await processor.process_text(
+            text=text,
+            document_id=doc.id,
+            knowledge_base_id=kb_id,
+            tenant_id=user.tenant_id,
+            acl_users=[user.sub],
+            acl_groups=user.groups,
+            metadata={"filename": file.filename, "mime_type": file.content_type},
+        )
+        
+        # Update document status
+        if result.success:
+            doc.status = DocumentStatus.COMPLETED
+            doc.chunk_count = result.chunk_count
+            doc.processed_at = datetime.utcnow()
+            
+            # Update KB document count
+            kb.document_count += 1
+        else:
+            doc.status = DocumentStatus.FAILED
+            doc.error_message = result.error
+        
+        await db.commit()
+        await db.refresh(doc)
         
         return DocumentResponse(
             id=doc.id,
@@ -361,15 +409,15 @@ async def upload_document(
             mime_type=doc.mime_type,
             file_size_bytes=doc.file_size_bytes,
             status=doc.status.value,
-            chunk_count=0,
+            chunk_count=doc.chunk_count,
             created_at=doc.created_at.isoformat() + "Z",
-            processed_at=None,
+            processed_at=doc.processed_at.isoformat() + "Z" if doc.processed_at else None,
         )
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create document: {str(e)}"
+            detail=f"Failed to process document: {str(e)}"
         )
 
 
@@ -395,8 +443,19 @@ async def delete_document(
                 detail="Document not found"
             )
         
-        # TODO: Delete from MinIO
-        # TODO: Delete vectors from Qdrant
+        # Delete vectors from Qdrant
+        try:
+            processor = await get_processor()
+            await processor.delete_document(doc_id, kb_id)
+        except Exception:
+            pass  # Continue even if Qdrant delete fails
+        
+        # Update KB document count
+        kb_query = select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        kb_result = await db.execute(kb_query)
+        kb = kb_result.scalar_one_or_none()
+        if kb:
+            kb.document_count = max(0, kb.document_count - 1)
         
         await db.delete(doc)
         await db.commit()
@@ -445,13 +504,44 @@ async def query_knowledge_base(
             detail=f"Failed to verify knowledge base: {str(e)}"
         )
     
-    # TODO: Generate embedding for query
-    # TODO: Search Qdrant collection
-    # TODO: Return results
-    
-    # Placeholder response
-    return QueryResponse(
-        query=body.query,
-        results=[],
-        total_results=0,
-    )
+    # Perform semantic search using RAG retriever
+    try:
+        retriever = await get_retriever()
+        chunks = await retriever.retrieve(
+            query=body.query,
+            knowledge_base_ids=[kb_id],
+            user_id=user.sub,
+            tenant_id=user.tenant_id,
+            group_ids=user.groups,
+            limit=body.top_k,
+            score_threshold=body.score_threshold,
+        )
+        
+        # Get document filenames for results
+        doc_ids = list(set(c.document_id for c in chunks))
+        doc_query = select(Document).where(Document.id.in_(doc_ids))
+        doc_result = await db.execute(doc_query)
+        docs = {d.id: d for d in doc_result.scalars().all()}
+        
+        results = [
+            QueryResult(
+                content=chunk.text,
+                score=chunk.score,
+                document_id=chunk.document_id,
+                filename=docs.get(chunk.document_id, Document(filename="unknown")).filename,
+                chunk_index=chunk.chunk_index,
+            )
+            for chunk in chunks
+        ]
+        
+        return QueryResponse(
+            query=body.query,
+            results=results,
+            total_results=len(results),
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Search failed: {str(e)}"
+        )

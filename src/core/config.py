@@ -157,6 +157,12 @@ class Settings(BaseSettings):
     default_rpm_limit: int = 60      # Requests per minute
     
     # ============================================
+    # Embeddings
+    # ============================================
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    
+    # ============================================
     # Semantic Caching
     # ============================================
     semantic_cache_enabled: bool = True
