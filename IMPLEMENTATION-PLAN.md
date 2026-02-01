@@ -230,6 +230,7 @@ Store conversation history in database:
 ## Current Status Summary
 
 ### What's Working Now
+
 | Feature | Status | How to Test |
 |---------|--------|-------------|
 | API Server | ✅ | `mise run dev` → http://localhost:8000 |

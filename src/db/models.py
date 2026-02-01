@@ -140,7 +140,7 @@ class User(Base):
     
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
-    sessions = relationship("Session", back_populates="user")
+    # Note: Sessions use flexible user_id (String) to support both UUID and better-auth IDs
     documents = relationship("Document", back_populates="uploaded_by")
     
     __table_args__ = (
@@ -154,11 +154,12 @@ class Session(Base):
     """Chat session / conversation thread.
     
     Each session maintains conversation history and context.
+    user_id can be either a UUID (dev mode) or better-auth ID (SSO login).
     """
     __tablename__ = "sessions"
     
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     
     # Session metadata
     title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -182,7 +183,8 @@ class Session(Base):
     last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Relationships
-    user = relationship("User", back_populates="sessions")
+    # Note: user_id is a String that can hold either UUID (dev) or better-auth ID (SSO)
+    # No ForeignKey to allow flexibility with different auth providers
     messages = relationship("Message", back_populates="session", order_by="Message.created_at")
     
     __table_args__ = (

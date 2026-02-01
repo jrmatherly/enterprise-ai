@@ -19,28 +19,36 @@ A modern React-based web UI for the Enterprise AI Platform that provides:
 ## Technology Stack
 
 ### Core Framework
+
 | Technology | Purpose | Rationale |
+
 |------------|---------|-----------|
 | **Next.js 15** | React framework | SSR, App Router, API routes, excellent DX |
 | **TypeScript** | Type safety | Enterprise requirement, better maintainability |
 | **React 19** | UI library | Industry standard, large ecosystem |
 
 ### Styling & Components
+
 | Technology | Purpose | Rationale |
+
 |------------|---------|-----------|
 | **Tailwind CSS** | Utility-first CSS | Rapid development, consistent design |
 | **shadcn/ui** | Component library | Radix primitives, accessible, customizable |
 | **Lucide Icons** | Icon library | Clean, consistent iconography |
 
 ### State & Data
+
 | Technology | Purpose | Rationale |
+
 |------------|---------|-----------|
 | **TanStack Query** | Server state | Caching, refetching, optimistic updates |
 | **Zustand** | Client state | Simple, lightweight, TypeScript-first |
 | **next-auth** | Authentication | OIDC/EntraID support, session management |
 
 ### Developer Experience
+
 | Technology | Purpose | Rationale |
+
 |------------|---------|-----------|
 | **ESLint + Prettier** | Code quality | Consistent formatting |
 | **Vitest** | Testing | Fast, Vite-compatible |
@@ -266,6 +274,7 @@ User visits /chat
 ### Backend Endpoints Used
 
 | Endpoint | Method | Purpose |
+
 |----------|--------|---------|
 | `/api/v1/chat` | POST | Send message, get response |
 | `/api/v1/chat/stream` | POST | Streaming chat response |

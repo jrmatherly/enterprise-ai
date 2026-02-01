@@ -40,6 +40,7 @@ mise run dev
 That's it! Everything is now running in Docker with hot reload enabled:
 
 | Service | URL | Description |
+
 |---------|-----|-------------|
 | **Frontend** | http://localhost:3001 | Next.js chat UI |
 | **Backend API** | http://localhost:8000 | FastAPI |
@@ -162,6 +163,7 @@ enterprise-ai-platform/
 ## Docker Services
 
 | Service | Port(s) | Description |
+
 |---------|---------|-------------|
 | **backend** | 8000 | FastAPI application |
 | **frontend** | 3001 | Next.js application |
@@ -178,6 +180,7 @@ enterprise-ai-platform/
 Two PostgreSQL databases in the same instance:
 
 | Database | Purpose | Managed By |
+
 |----------|---------|------------|
 | `langfuse` | Observability data | Prisma (Langfuse) |
 | `eai` | Application data | Alembic (us) |
@@ -257,6 +260,7 @@ mise tasks       # List all available tasks
 Key tasks:
 
 | Task | Description |
+
 |------|-------------|
 | `setup` | First-time setup (build, start, migrate) |
 | `dev` | Start all services |

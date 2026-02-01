@@ -57,8 +57,12 @@ async def list_sessions(
     # Note: In dev mode without real users, we'd need to handle this differently
     # For now, return empty list if no DB entries
     try:
+        # Use selectinload to eagerly fetch messages to avoid lazy loading issues
+        from sqlalchemy.orm import selectinload
+        
         query = (
             select(Session)
+            .options(selectinload(Session.messages))
             .where(Session.user_id == user.sub)
             .where(Session.is_active == True)
             .order_by(Session.updated_at.desc())
@@ -81,8 +85,9 @@ async def list_sessions(
             )
             for s in sessions
         ]
-    except Exception:
-        # Database not initialized or no sessions
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error listing sessions: {e}")
         return []
 
 
