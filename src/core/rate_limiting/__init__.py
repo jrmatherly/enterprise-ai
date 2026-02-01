@@ -44,12 +44,12 @@ class CombinedRateLimiter:
         """Check and increment request count. Raises RateLimitExceeded if exceeded."""
         from datetime import datetime
         
-        allowed, remaining = await self.request_limiter.check_and_increment(tenant_id)
+        allowed, remaining, limit = await self.request_limiter.check_and_increment(tenant_id)
         
         if not allowed:
             raise RateLimitExceeded(
                 limit_type="RPM",
-                limit=self.request_limiter.default_rpm,
+                limit=limit,
                 remaining=0,
                 retry_after=60 - datetime.utcnow().second,
             )
@@ -87,14 +87,18 @@ class CombinedRateLimiter:
         """Get current usage stats for a tenant."""
         token_usage = await self.token_limiter.get_usage(tenant_id)
         
-        # Get request usage too
+        # Get request usage with tenant-specific limit
         from datetime import datetime
         now = datetime.utcnow()
         minute_key = f"rpm:{tenant_id}:{now.strftime('%Y%m%d%H%M')}"
         
-        current_requests = await self.request_limiter.redis.get(minute_key)
-        current_requests = int(current_requests) if current_requests else 0
-        rpm_limit = self.request_limiter.default_rpm
+        pipe = self.request_limiter.redis.pipeline()
+        pipe.get(minute_key)
+        pipe.hget("tenant:limits:rpm", tenant_id)
+        current_raw, limit_raw = await pipe.execute()
+        
+        current_requests = int(current_raw) if current_raw else 0
+        rpm_limit = int(limit_raw) if limit_raw else self.request_limiter.default_rpm
         
         return {
             "tokens": {

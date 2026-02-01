@@ -117,11 +117,11 @@ class RequestRateLimiter:
         self.default_rpm = default_rpm
         self.window_seconds = window_seconds
     
-    async def check_and_increment(self, tenant_id: str) -> tuple[bool, int]:
+    async def check_and_increment(self, tenant_id: str) -> tuple[bool, int, int]:
         """Check if request is allowed and increment counter.
         
         Returns:
-            Tuple of (allowed, remaining_requests)
+            Tuple of (allowed, remaining_requests, limit)
         """
         now = datetime.utcnow()
         minute_key = f"rpm:{tenant_id}:{now.strftime('%Y%m%d%H%M')}"
@@ -139,4 +139,4 @@ class RequestRateLimiter:
         allowed = current <= limit
         remaining = max(0, limit - current)
         
-        return allowed, remaining
+        return allowed, remaining, limit
