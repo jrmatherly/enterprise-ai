@@ -1,6 +1,9 @@
 """Authentication middleware for FastAPI.
 
-Extracts and validates JWTs from requests, setting user context.
+Supports multiple authentication methods:
+1. X-Dev-Bypass header (development only)
+2. better-auth session cookies (frontend SSO)
+3. Bearer JWT tokens (EntraID direct)
 """
 
 from typing import Callable, Optional
@@ -11,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from src.auth.oidc import validate_token, OIDCValidationError, UserClaims
+from src.auth.better_auth import validate_session_token, get_session_token_from_cookies
 from src.core.config import get_settings
 
 
@@ -57,67 +61,79 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if is_public_path(request.url.path):
             return await call_next(request)
         
-        # In development mode, allow bypass with X-Dev-Bypass header or no auth
+        # Dev user for fallback in development mode
+        dev_user = UserClaims(
+            sub="00000000-0000-0000-0000-000000000001",
+            email="dev@example.com",
+            name="Developer",
+            roles=["OrgAdmin"],
+            tenant_id="00000000-0000-0000-0000-000000000000",
+            groups=[],
+            raw_claims={},
+        )
+        
+        # Check for explicit dev bypass header first (highest priority in dev)
         if settings.environment == "development":
-            # Dev user with valid UUIDs for database compatibility
-            dev_user = UserClaims(
-                sub="00000000-0000-0000-0000-000000000001",  # Valid UUID
-                email="dev@example.com",
-                name="Developer",
-                roles=["OrgAdmin"],  # Full access in dev mode
-                tenant_id="00000000-0000-0000-0000-000000000000",  # Valid UUID
-                groups=[],
-                raw_claims={},
-            )
-            
-            # Check for explicit dev bypass header
             if request.headers.get("X-Dev-Bypass") == "true":
                 request.state.user = dev_user
                 return await call_next(request)
-            
-            # Check for placeholder values that indicate unconfigured auth
-            is_placeholder = (
-                not settings.azure_tenant_id or 
-                settings.azure_tenant_id == "tenant-id" or
-                settings.azure_tenant_id.startswith("<")
-            )
-            if is_placeholder:
-                request.state.user = dev_user
+        
+        # Try better-auth session cookie (from frontend SSO)
+        cookies = dict(request.cookies)
+        session_token = get_session_token_from_cookies(cookies)
+        
+        if session_token:
+            result = await validate_session_token(session_token)
+            if result:
+                session, user = result
+                # Convert better-auth user to UserClaims format
+                request.state.user = UserClaims(
+                    sub=user.id,  # Use better-auth user ID
+                    email=user.email,
+                    name=user.name,
+                    roles=["User"],  # Default role, can be enhanced
+                    tenant_id=user.tenant_id or "default",
+                    groups=[],
+                    raw_claims={
+                        "department": user.department,
+                        "job_title": user.job_title,
+                        "email_verified": user.email_verified,
+                    },
+                )
                 return await call_next(request)
         
-        # Extract token from Authorization header
+        # Try Bearer token (EntraID JWT)
         auth_header = request.headers.get("Authorization")
         
-        if not auth_header:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing Authorization header",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        if auth_header:
+            # Parse Bearer token
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token = parts[1]
+                
+                # Validate token
+                try:
+                    user_claims = await validate_token(token)
+                    request.state.user = user_claims
+                    return await call_next(request)
+                except OIDCValidationError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail=str(e),
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
         
-        # Parse Bearer token
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Authorization header format. Use: Bearer <token>",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        # In development mode, fall back to dev user if no other auth provided
+        if settings.environment == "development":
+            request.state.user = dev_user
+            return await call_next(request)
         
-        token = parts[1]
-        
-        # Validate token
-        try:
-            user_claims = await validate_token(token)
-            request.state.user = user_claims
-        except OIDCValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e),
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return await call_next(request)
+        # No valid authentication found (production)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Provide session cookie or Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 async def get_current_user(request: Request) -> UserClaims:

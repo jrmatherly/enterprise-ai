@@ -12,17 +12,31 @@ export class APIError extends Error {
 
 /**
  * Get authorization header for API requests
- * In production, this will be the session token from better-auth
- * In development, can use X-Dev-Bypass header
+ * 
+ * In production: Session cookie is automatically included (credentials: 'include')
+ * In development: 
+ *   - If user is logged in (has session cookie), use session cookie
+ *   - If no session, use X-Dev-Bypass for testing
  */
 function getAuthHeaders(): Record<string, string> {
-  // In development, use bypass header
+  // Check if we have a better-auth session cookie
+  // If logged in via SSO, don't send dev bypass header
+  if (typeof document !== 'undefined') {
+    const hasSessionCookie = document.cookie
+      .split(';')
+      .some(c => c.trim().startsWith('better-auth.session_token='));
+    
+    if (hasSessionCookie) {
+      // User is logged in via SSO - let session cookie handle auth
+      return {};
+    }
+  }
+  
+  // In development without SSO session, use bypass header for testing
   if (process.env.NODE_ENV === 'development') {
     return { 'X-Dev-Bypass': 'true' };
   }
   
-  // In production, session cookie is automatically included
-  // The backend validates the session via the cookie
   return {};
 }
 
