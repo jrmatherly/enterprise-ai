@@ -17,6 +17,7 @@ from src.api.deps import (
 from src.agent.runtime import ChatMessage, ChatContext
 from src.core.rate_limiting import RateLimitExceeded
 from src.db.models import MessageRole
+from src.rag import get_retriever
 
 
 router = APIRouter()
@@ -121,6 +122,30 @@ async def chat(
         knowledge_base_ids=body.knowledge_base_ids,
     )
     
+    # Perform RAG retrieval if knowledge bases specified
+    retrieved_context = []
+    rag_context_text = ""
+    if body.knowledge_base_ids:
+        try:
+            retriever = await get_retriever()
+            chunks = await retriever.retrieve(
+                query=body.message,
+                knowledge_base_ids=body.knowledge_base_ids,
+                user_id=user.sub,
+                tenant_id=user.tenant_id,
+                group_ids=user.groups,
+                limit=5,
+                score_threshold=0.5,
+            )
+            retrieved_context = [
+                {"text": c.text, "score": c.score, "document_id": c.document_id}
+                for c in chunks
+            ]
+            rag_context_text = retriever.format_context(chunks)
+        except Exception as e:
+            # Log but continue without RAG
+            print(f"RAG retrieval failed: {e}")
+    
     # Build context
     context = ChatContext(
         user_id=user.sub,
@@ -128,7 +153,7 @@ async def chat(
         session_id=session.id,
         trace_id=trace_id,
         knowledge_base_ids=body.knowledge_base_ids or [],
-        retrieved_context=[],  # TODO: Implement RAG retrieval
+        retrieved_context=retrieved_context,
     )
     
     # Build message history
@@ -143,6 +168,16 @@ async def chat(
         recent_messages = await message_repo.get_recent_messages(session.id, limit=20)
         for msg in recent_messages:
             messages.append(ChatMessage(role=msg.role.value, content=msg.content))
+    
+    # Add RAG context as system message if available
+    if rag_context_text:
+        rag_system_msg = (
+            "Use the following retrieved context to help answer the user's question. "
+            "If the context doesn't contain relevant information, say so and answer "
+            "based on your general knowledge.\n\n"
+            f"Retrieved Context:\n{rag_context_text}"
+        )
+        messages.append(ChatMessage(role="system", content=rag_system_msg))
     
     # Add current user message
     messages.append(ChatMessage(role="user", content=body.message))
@@ -277,6 +312,29 @@ async def chat_stream(
         knowledge_base_ids=body.knowledge_base_ids,
     )
     
+    # Perform RAG retrieval if knowledge bases specified
+    retrieved_context = []
+    rag_context_text = ""
+    if body.knowledge_base_ids:
+        try:
+            retriever = await get_retriever()
+            chunks = await retriever.retrieve(
+                query=body.message,
+                knowledge_base_ids=body.knowledge_base_ids,
+                user_id=user.sub,
+                tenant_id=user.tenant_id,
+                group_ids=user.groups,
+                limit=5,
+                score_threshold=0.5,
+            )
+            retrieved_context = [
+                {"text": c.text, "score": c.score, "document_id": c.document_id}
+                for c in chunks
+            ]
+            rag_context_text = retriever.format_context(chunks)
+        except Exception as e:
+            print(f"RAG retrieval failed: {e}")
+    
     # Build context
     context = ChatContext(
         user_id=user.sub,
@@ -284,7 +342,7 @@ async def chat_stream(
         session_id=session.id,
         trace_id=trace_id,
         knowledge_base_ids=body.knowledge_base_ids or [],
-        retrieved_context=[],
+        retrieved_context=retrieved_context,
     )
     
     # Build message history
@@ -297,6 +355,16 @@ async def chat_stream(
         recent_messages = await message_repo.get_recent_messages(session.id, limit=20)
         for msg in recent_messages:
             messages.append(ChatMessage(role=msg.role.value, content=msg.content))
+    
+    # Add RAG context as system message if available
+    if rag_context_text:
+        rag_system_msg = (
+            "Use the following retrieved context to help answer the user's question. "
+            "If the context doesn't contain relevant information, say so and answer "
+            "based on your general knowledge.\n\n"
+            f"Retrieved Context:\n{rag_context_text}"
+        )
+        messages.append(ChatMessage(role="system", content=rag_system_msg))
     
     messages.append(ChatMessage(role="user", content=body.message))
     
