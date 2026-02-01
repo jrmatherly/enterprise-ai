@@ -40,7 +40,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           {message.content}
         </div>
         
-        {message.timestamp && (
+        {message.timestamp && formatTime(message.timestamp) && (
           <div
             className={cn(
               'mt-1.5 text-[10px]',
@@ -56,6 +56,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 }
 
 function formatTime(timestamp: string): string {
+  if (!timestamp) return '';
+  
   const date = new Date(timestamp);
+  
+  // Check for invalid date
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
