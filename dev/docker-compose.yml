@@ -97,6 +97,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "3001:3001"
     volumes:
@@ -114,6 +116,16 @@ services:
       BACKEND_URL: http://backend:8000
       # Disable telemetry
       NEXT_TELEMETRY_DISABLED: "1"
+      
+      # Better Auth configuration
+      BETTER_AUTH_SECRET: ${NEXTAUTH_SECRET:-changeme-generate-random-secret}
+      BETTER_AUTH_URL: http://localhost:3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${APP_DB:-eai}
+      
+      # Microsoft EntraID
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3001 || exit 1"]
       interval: 10s
