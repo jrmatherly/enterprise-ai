@@ -86,3 +86,6 @@ data/
 
 # Alembic
 *.db
+
+# Local docs
+.local_docs/
