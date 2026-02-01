@@ -2,7 +2,7 @@
 
 **Created:** 2026-01-31  
 **Last Updated:** 2026-02-01  
-**Status:** Phase 1 In Progress
+**Status:** Phase 2 In Progress
 
 ---
 
@@ -11,8 +11,8 @@
 | Phase | Focus | Duration | Status |
 |-------|-------|----------|--------|
 | **Phase 0** | Setup & Validation | 1 week | ✅ Complete |
-| **Phase 1** | Core Foundation | 2 weeks | 🔄 In Progress |
-| **Phase 2** | RAG & Knowledge Bases | 1.5 weeks | ⏳ Not Started |
+| **Phase 1** | Core Foundation | 2 weeks | ✅ Complete |
+| **Phase 2** | RAG & Knowledge Bases | 1.5 weeks | 🔄 In Progress |
 | **Phase 3** | Channels (Slack + Web) | 1 week | ⏳ Not Started |
 | **Phase 4** | Admin & Polish | 0.5-1 week | ⏳ Not Started |
 
@@ -56,13 +56,14 @@ enterprise-ai-platform/
 ├── src/
 │   ├── api/              ✅ FastAPI routes
 │   ├── agent/            ✅ Agent runtime (Azure AI)
-│   ├── auth/             ✅ Auth middleware
-│   ├── core/             ✅ Config, utilities
+│   ├── auth/             ✅ Auth middleware + RBAC
+│   ├── core/             ✅ Config, utilities, rate limiting
 │   ├── db/               ✅ Models, migrations
 │   ├── observability/    🔄 Partial
-│   └── rag/              ⏳ Pending
+│   └── rag/              ✅ RAG pipeline
 ├── alembic/              ✅ Migrations
 ├── dev/                  ✅ Docker stack
+├── frontend/             ✅ Next.js chat UI
 └── tests/                ⏳ Pending
 ```
 
@@ -75,19 +76,21 @@ enterprise-ai-platform/
 - [ ] OpenTelemetry tracing (partial)
 - [ ] Structured JSON logging (partial)
 
-### 1.3 Authentication & Authorization 🔄
+### 1.3 Authentication & Authorization ✅
 - [x] OIDC token validation middleware (EntraID)
 - [x] Extract user claims from JWT
 - [x] Dev bypass mode for testing (`X-Dev-Bypass: true`)
-- [ ] RBAC permission checking
-- [ ] `@require_permission` decorator
+- [x] RBAC permission checking (Permission enum, role mappings)
+- [x] `@require_permission` decorator and `PermissionChecker` dependency
+- [x] Frontend: better-auth with Microsoft EntraID SSO
 - [ ] Auth integration tests
 
-### 1.4 Rate Limiting ⏳ NEXT
-- [ ] Implement `TokenRateLimiter` class
-- [ ] Create rate limit middleware for FastAPI
-- [ ] Add tenant limit configuration in PostgreSQL
-- [ ] Implement 429 response with `Retry-After` header
+### 1.4 Rate Limiting ✅
+- [x] Implement `TokenRateLimiter` class (TPM)
+- [x] Implement `RequestRateLimiter` class (RPM)
+- [x] `CombinedRateLimiter` wrapping both
+- [x] Tenant-specific limits from Redis
+- [x] 429 response with `Retry-After` and `X-RateLimit-*` headers
 - [ ] Add rate limit metrics to Prometheus
 
 ### 1.5 Agent Runtime ✅
@@ -147,32 +150,36 @@ Store conversation history in database:
 
 ---
 
-## Phase 2: RAG & Knowledge Bases (Weeks 4-5)
+## Phase 2: RAG & Knowledge Bases 🔄 IN PROGRESS
 
 **Goal:** Implement document ingestion and retrieval with access control.
 
-### 2.1 Document Ingestion
-- [ ] Chunking strategies (fixed size, paragraph-based)
-- [ ] Document processing pipeline
-- [ ] Support file types: PDF, DOCX, TXT, MD
-- [ ] Background processing
+### 2.1 Document Ingestion ✅
+- [x] Chunking strategies (fixed size, paragraph-based)
+- [x] Document processing pipeline (`DocumentProcessor`)
+- [x] Support file types: TXT, MD
+- [ ] Support file types: PDF, DOCX (text extraction pending)
+- [ ] Background processing (currently synchronous)
 
-### 2.2 Vector Storage (Qdrant)
-- [ ] Create collection with ACL metadata schema
-- [ ] Embedding generation (Azure AI or local)
-- [ ] Retrieval with access control filters
+### 2.2 Vector Storage (Qdrant) ✅
+- [x] `VectorStore` class with Qdrant client
+- [x] Collection creation with payload indexes
+- [x] Embedding generation (Azure OpenAI text-embedding-3-small)
+- [x] Retrieval with ACL filtering (user_id, group_ids, tenant_id)
 - [ ] Hybrid search (semantic + keyword)
 
-### 2.3 RAG Pipeline
-- [ ] Retriever class for Qdrant
-- [ ] Context injection for agent prompts
+### 2.3 RAG Pipeline ✅
+- [x] `Retriever` class for Qdrant search
+- [x] `Embedder` class for Azure OpenAI embeddings
+- [x] Context injection in chat endpoints
 - [ ] Source citations in responses
 
-### 2.4 Knowledge Base API
-- [ ] List accessible knowledge bases
-- [ ] Upload documents
-- [ ] List/delete documents
-- [ ] Direct RAG query endpoint
+### 2.4 Knowledge Base API ✅
+- [x] `GET /knowledge-bases` - List accessible KBs
+- [x] `POST /knowledge-bases` - Create KB (creates Qdrant collection)
+- [x] `POST /knowledge-bases/{id}/documents` - Upload and process documents
+- [x] `DELETE /knowledge-bases/{id}/documents/{id}` - Delete document + vectors
+- [x] `POST /knowledge-bases/{id}/query` - Direct semantic search
 
 ### 2.5 Semantic Caching
 - [ ] `SemanticCache` class
@@ -192,11 +199,12 @@ Store conversation history in database:
 - [ ] Thread-based conversations
 - [ ] User identity mapping
 
-### 3.2 Web UI
-- [ ] React/Next.js project
-- [ ] OIDC login flow
-- [ ] Chat interface with streaming
-- [ ] Document upload
+### 3.2 Web UI ✅ (MVP Complete)
+- [x] Next.js 15 project with React 19
+- [x] better-auth with Microsoft EntraID SSO
+- [x] Chat interface with streaming
+- [x] Session management (sidebar, history)
+- [ ] Document upload UI
 - [ ] Knowledge base browser
 
 ---
@@ -222,19 +230,26 @@ Store conversation history in database:
 | Feature | Status | How to Test |
 |---------|--------|-------------|
 | API Server | ✅ | `mise run dev` → http://localhost:8000 |
+| Frontend | ✅ | http://localhost:3001 |
 | Health Checks | ✅ | `curl http://localhost:8000/health/ready` |
 | Azure AI Chat | ✅ | `mise run chat` |
 | Streaming | ✅ | POST to `/api/v1/chat/stream` |
-| Auth Bypass | ✅ | Header: `X-Dev-Bypass: true` |
+| Auth (Dev) | ✅ | Header: `X-Dev-Bypass: true` |
+| Auth (SSO) | ✅ | Microsoft EntraID via better-auth |
+| Rate Limiting | ✅ | TPM + RPM with 429 responses |
+| RBAC | ✅ | Permission-based route protection |
+| Sessions | ✅ | `GET/POST /api/v1/sessions` |
+| Knowledge Bases | ✅ | `GET/POST /api/v1/knowledge-bases` |
+| RAG Retrieval | ✅ | Chat with `knowledge_base_ids` |
 | Database | ✅ | 8 tables via Alembic |
-| Docker Stack | ✅ | `mise run docker-ps` |
+| Docker Stack | ✅ | 9 services (all healthy) |
 | Langfuse | ✅ | http://localhost:3000 |
 
 ### What's Next
-1. **Rate Limiting** — Protect API from overuse
-2. **Message Persistence** — Store chat history
-3. **RBAC** — Role-based access control
-4. **RAG Pipeline** — Knowledge base retrieval
+1. **PDF/DOCX Extraction** — Support more document types
+2. **Semantic Caching** — Cache similar queries
+3. **Slack Integration** — Bot for team access
+4. **Admin UI** — Tenant/KB management
 
 ---
 
