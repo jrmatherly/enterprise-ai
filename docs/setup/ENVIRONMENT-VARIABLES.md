@@ -24,6 +24,7 @@ mise run dev
 ## File Locations
 
 | File | Purpose | Git Tracked? |
+
 |------|---------|--------------|
 | `dev/.env.example` | Template with all Docker variables | ✅ Yes |
 | `dev/.env` | Your actual Docker secrets | ❌ No |
@@ -41,6 +42,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Application
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `ENVIRONMENT` | `development` | No | Environment mode (development/staging/production) |
 | `DEBUG` | `false` | No | Enable debug mode |
@@ -52,6 +54,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Database (PostgreSQL)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `DATABASE_URL` | — | **Yes** | Full PostgreSQL connection string |
 | `POSTGRES_HOST` | `localhost` | No | PostgreSQL hostname |
@@ -66,6 +69,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Redis
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `REDIS_HOST` | `localhost` | No | Redis hostname |
 | `REDIS_PORT` | `6379` | No | Redis port |
@@ -74,6 +78,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Qdrant (Vector Database)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `QDRANT_URL` | `http://localhost:6333` | No | Qdrant REST API URL |
 | `QDRANT_COLLECTION` | `documents` | No | Default collection name |
@@ -82,6 +87,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Azure AI Foundry (Multi-Region)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `AZURE_AI_EASTUS_ENDPOINT` | — | **Yes** | East US OpenAI endpoint URL |
 | `AZURE_AI_EASTUS_API_KEY` | — | **Yes** | East US API key |
@@ -97,6 +103,7 @@ These variables are used by `src/core/config.py` via Pydantic Settings.
 ### Embeddings
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | No | Azure embedding model name |
 | `EMBEDDING_DIMENSIONS` | `1536` | No | Vector dimensions (must match model) |
@@ -109,6 +116,7 @@ Available embedding models:
 ### Microsoft Entra ID (SSO)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `AZURE_TENANT_ID` | — | **Yes** | Azure AD tenant ID |
 | `AZURE_CLIENT_ID` | — | **Yes** | App registration client ID |
@@ -118,6 +126,7 @@ Available embedding models:
 ### Rate Limiting
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `RATE_LIMIT_TPM` | `100000` | No | Tokens per minute limit |
 | `RATE_LIMIT_RPM` | `60` | No | Requests per minute limit |
@@ -125,6 +134,7 @@ Available embedding models:
 ### Semantic Caching
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `SEMANTIC_CACHE_ENABLED` | `true` | No | Enable semantic cache |
 | `SEMANTIC_CACHE_THRESHOLD` | `0.95` | No | Similarity threshold |
@@ -133,6 +143,7 @@ Available embedding models:
 ### Langfuse SDK
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `LANGFUSE_HOST` | `http://localhost:3000` | No | Langfuse server URL |
 | `LANGFUSE_PUBLIC_KEY` | — | **Yes** | Langfuse project public key |
@@ -141,6 +152,7 @@ Available embedding models:
 ### OpenTelemetry
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `OTLP_ENDPOINT` | — | No | OTLP collector endpoint |
 
@@ -153,6 +165,7 @@ These variables are used by the Next.js frontend.
 ### Better Auth
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `BETTER_AUTH_SECRET` | — | **Yes** | Session encryption secret (32+ chars) |
 | `BETTER_AUTH_URL` | `http://localhost:3001` | No | Auth base URL |
@@ -161,6 +174,7 @@ These variables are used by the Next.js frontend.
 ### Microsoft Entra ID
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `AZURE_TENANT_ID` | — | **Yes** | Same as backend |
 | `AZURE_CLIENT_ID` | — | **Yes** | Same as backend |
@@ -169,6 +183,7 @@ These variables are used by the Next.js frontend.
 ### API Configuration
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `NEXT_PUBLIC_API_URL` | — | No | Backend API URL (empty = same origin) |
 | `BACKEND_URL` | `http://backend:8000` | No | Internal backend URL (Docker) |
@@ -176,6 +191,7 @@ These variables are used by the Next.js frontend.
 ### Next.js
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `NODE_ENV` | `development` | No | Node environment |
 | `NEXT_TELEMETRY_DISABLED` | `1` | No | Disable Next.js telemetry |
@@ -189,6 +205,7 @@ These variables are used by Docker Compose services.
 ### ClickHouse (Langfuse v3)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `CLICKHOUSE_USER` | `clickhouse` | No | ClickHouse username |
 | `CLICKHOUSE_PASSWORD` | `clickhouse` | **Yes** | ClickHouse password |
@@ -196,6 +213,7 @@ These variables are used by Docker Compose services.
 ### MinIO (S3 Storage)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `MINIO_ROOT_USER` | `minio` | No | MinIO admin username |
 | `MINIO_ROOT_PASSWORD` | `miniosecret` | **Yes** | MinIO admin password |
@@ -203,6 +221,7 @@ These variables are used by Docker Compose services.
 ### Langfuse Server
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `NEXTAUTH_SECRET` | — | **Yes** | NextAuth secret (32+ chars) |
 | `NEXTAUTH_URL` | `http://localhost:3000` | No | Langfuse URL |
@@ -212,6 +231,7 @@ These variables are used by Docker Compose services.
 ### Langfuse Initialization (Optional)
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `LANGFUSE_INIT_ORG_ID` | — | No | Pre-create organization ID |
 | `LANGFUSE_INIT_ORG_NAME` | — | No | Organization name |

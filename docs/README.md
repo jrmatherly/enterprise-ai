@@ -20,6 +20,7 @@ docs/
 System design, infrastructure, and technical architecture documentation.
 
 | Document | Description |
+
 |----------|-------------|
 | [MVP Architecture](architecture/MVP-ARCHITECTURE.md) | Core architecture, components, and design decisions |
 | [Enterprise Concerns](architecture/ENTERPRISE-ARCHITECTURE-CONCERNS.md) | Security, compliance, and enterprise considerations |
@@ -33,6 +34,7 @@ System design, infrastructure, and technical architecture documentation.
 Getting started with local development and configuration.
 
 | Document | Description |
+
 |----------|-------------|
 | [Getting Started](setup/SETUP.md) | Local development setup guide |
 | [Environment Variables](setup/ENVIRONMENT-VARIABLES.md) | Complete env var reference |
@@ -45,6 +47,7 @@ Getting started with local development and configuration.
 Contributing guidelines and development workflow.
 
 | Document | Description |
+
 |----------|-------------|
 | [Contributing Guide](development/CONTRIBUTING.md) | Git workflow, commit conventions |
 | [Mise Tasks & Hooks](development/MISE-ENHANCEMENT-OPPORTUNITIES.md) | Task runner and git hooks |
@@ -56,6 +59,7 @@ Contributing guidelines and development workflow.
 Technical references and analysis documents.
 
 | Document | Description |
+
 |----------|-------------|
 | [Dependency Audit](reference/DEPENDENCY-AUDIT.md) | Security audit and version analysis |
 | [Microsoft Repos Analysis](reference/MICROSOFT-REPOS-ANALYSIS.md) | Analysis of Microsoft AI repositories |
@@ -65,6 +69,7 @@ Technical references and analysis documents.
 ## 📋 Project
 
 | Document | Description |
+
 |----------|-------------|
 | [Implementation Plan](IMPLEMENTATION-PLAN.md) | Project phases and progress tracking |
 

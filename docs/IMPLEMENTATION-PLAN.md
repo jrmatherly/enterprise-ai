@@ -9,6 +9,7 @@
 ## Phase Overview
 
 | Phase | Focus | Duration | Status |
+
 |-------|-------|----------|--------|
 | **Phase 0** | Setup & Validation | 1 week | ✅ Complete |
 | **Phase 1** | Core Foundation | 2 weeks | ✅ Complete |
