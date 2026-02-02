@@ -113,6 +113,11 @@ Available embedding models:
 - `text-embedding-3-small` → 1536 dims (recommended)
 - `text-embedding-3-large` → 3072 dims (highest quality)
 
+> ⚠️ **Important:** Different embedding models produce different similarity score ranges.
+> `text-embedding-3-large` produces scores in the 0.2-0.4 range (not 0.7-0.9 like ada-002).
+> The RAG pipeline uses `score_threshold=0.2` by default to accommodate this.
+> See [RAG Pipeline Architecture](../architecture/RAG-PIPELINE.md) for details.
+
 ### Microsoft Entra ID (SSO)
 
 | Variable | Default | Required | Description |

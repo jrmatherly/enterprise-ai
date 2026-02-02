@@ -20,9 +20,9 @@ docs/
 System design, infrastructure, and technical architecture documentation.
 
 | Document | Description |
-
 |----------|-------------|
 | [MVP Architecture](architecture/MVP-ARCHITECTURE.md) | Core architecture, components, and design decisions |
+| [RAG Pipeline](architecture/RAG-PIPELINE.md) | Document retrieval, embeddings, citations, and troubleshooting |
 | [Authentication](architecture/AUTHENTICATION.md) | Auth flow, better-auth, JWT/JWKS verification |
 | [Frontend Architecture](architecture/FRONTEND-ARCHITECTURE.md) | Next.js app structure and patterns |
 | [Enterprise Concerns](architecture/ENTERPRISE-ARCHITECTURE-CONCERNS.md) | Security, compliance, and enterprise considerations |

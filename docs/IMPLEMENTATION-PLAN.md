@@ -173,8 +173,10 @@ Store conversation history in database:
 ### 2.3 RAG Pipeline ✅
 - [x] `Retriever` class for Qdrant search
 - [x] `Embedder` class for Azure OpenAI embeddings
-- [x] Context injection in chat endpoints
-- [x] Source citations in responses (document, score, excerpt)
+- [x] Context injection in chat endpoints (as first system message)
+- [x] Source citations with `[1]`, `[2]` notation and source legend
+- [x] Score threshold tuned for `text-embedding-3-large` (0.2 vs 0.5)
+- [x] RAG Pipeline documentation (`docs/architecture/RAG-PIPELINE.md`)
 
 ### 2.4 Knowledge Base API ✅
 - [x] `GET /knowledge-bases` - List accessible KBs
