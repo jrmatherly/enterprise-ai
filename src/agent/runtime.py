@@ -182,15 +182,20 @@ You must ONLY respond using information from the <retrieved_context> section bel
 </retrieved_context>
 
 IMPORTANT: Do NOT include inline source citations like [Source: filename] in your response text.
-Sources will be displayed separately in the UI. Just provide your answer naturally.
+Sources will be displayed separately in the UI. Just provide your answer naturally."""
 
-After your main response, suggest 2-3 relevant follow-up questions on a new line.
-Format EXACTLY like this (the marker is required for parsing):
+        # Add follow-up questions instruction (always available, AI decides when appropriate)
+        base_prompt += """
+
+FOLLOW-UP QUESTIONS:
+When appropriate (e.g., the topic has related areas to explore, the user might benefit from deeper understanding, or there are natural next questions), suggest 2-3 relevant follow-up questions.
+Do NOT include follow-ups for simple factual answers, greetings, or when the conversation is clearly ending.
+When you do include follow-ups, format EXACTLY like this (the markers are required for parsing):
 
 <<<FOLLOWUP>>>
-What is the escalation process for unresolved issues?
-How do I document customer complaints?
-What are the key metrics for customer satisfaction?
+First relevant follow-up question?
+Second relevant follow-up question?
+Third relevant follow-up question?
 <<<END_FOLLOWUP>>>"""
 
         return base_prompt
