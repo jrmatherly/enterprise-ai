@@ -20,9 +20,6 @@ uv = "latest"
 # Hooks
 # ============================================
 # Note: hk hooks should be installed manually with 'mise run git:hooks:install'
-[hooks]
-enter = "mise install -q"
-
 # ============================================
 # Environment Configuration
 # ============================================
