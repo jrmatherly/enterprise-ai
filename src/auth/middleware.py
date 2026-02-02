@@ -1,11 +1,17 @@
 """Authentication middleware for FastAPI.
 
 Supports multiple authentication methods (in priority order):
-1. X-Dev-Bypass header (development only)
+1. X-Dev-Bypass header (development only, requires explicit opt-in)
 2. Bearer JWT token (from better-auth or EntraID)
 3. better-auth session cookies (browser requests)
+
+SECURITY NOTE: Dev bypass requires BOTH:
+  - ENVIRONMENT=development
+  - DEV_BYPASS_ENABLED=true
+This prevents accidental bypass in misconfigured environments.
 """
 
+import logging
 from collections.abc import Callable
 
 from fastapi import HTTPException, Request, status
@@ -20,6 +26,8 @@ from src.auth.better_auth import (
 )
 from src.auth.oidc import OIDCValidationError, UserClaims, validate_token
 from src.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # HTTP Bearer security scheme for OpenAPI docs
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -69,22 +77,37 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if is_public_path(request.url.path):
             return await call_next(request)
 
-        # Dev user for fallback in development mode
-        dev_user = UserClaims(
-            sub="00000000-0000-0000-0000-000000000001",
-            email="dev@example.com",
-            name="Developer",
-            roles=["OrgAdmin"],
-            tenant_id="00000000-0000-0000-0000-000000000000",
-            groups=[],
-            raw_claims={},
+        # 1. Check for explicit dev bypass header (requires BOTH conditions)
+        # SECURITY: This is a defense-in-depth approach - both must be true:
+        #   - environment == "development" (prevent prod bypass)
+        #   - dev_bypass_enabled == True (explicit opt-in required)
+        dev_bypass_allowed = (
+            settings.environment == "development"
+            and settings.dev_bypass_enabled is True  # Explicit True check, not truthy
         )
 
-        # 1. Check for explicit dev bypass header (highest priority in dev)
-        if settings.environment == "development":
-            if request.headers.get("X-Dev-Bypass") == "true":
-                request.state.user = dev_user
-                return await call_next(request)
+        if dev_bypass_allowed and request.headers.get("X-Dev-Bypass") == "true":
+            dev_user = UserClaims(
+                sub="00000000-0000-0000-0000-000000000001",
+                email="dev@example.com",
+                name="Developer",
+                roles=["OrgAdmin"],
+                tenant_id="00000000-0000-0000-0000-000000000000",
+                groups=[],
+                raw_claims={},
+            )
+            # AUDIT: Log all dev bypass usage for security review
+            logger.warning(
+                "DEV BYPASS ACTIVATED - request authenticated via X-Dev-Bypass header",
+                extra={
+                    "security_event": "dev_bypass",
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": request.client.host if request.client else "unknown",
+                },
+            )
+            request.state.user = dev_user
+            return await call_next(request)
 
         # 2. Try Bearer token from Authorization header
         auth_header = request.headers.get("Authorization")
@@ -148,12 +171,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 )
                 return await call_next(request)
 
-        # In development mode, fall back to dev user if no other auth provided
-        if settings.environment == "development":
-            request.state.user = dev_user
-            return await call_next(request)
-
-        # No valid authentication found (production)
+        # SECURITY: No silent fallback - all requests must authenticate explicitly.
+        # In dev mode, use X-Dev-Bypass header if DEV_BYPASS_ENABLED=true.
+        # This prevents accidental privilege escalation from misconfiguration.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Provide Authorization header or session cookie.",

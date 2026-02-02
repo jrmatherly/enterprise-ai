@@ -198,6 +198,18 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "console"  # "json" or "console"
 
+    # ============================================
+    # Development Security (DANGER ZONE)
+    # ============================================
+    # SECURITY: Both conditions must be true for dev bypass to work:
+    # 1. environment == "development"
+    # 2. dev_bypass_enabled == True (explicit opt-in)
+    # This prevents accidental bypass in misconfigured environments
+    dev_bypass_enabled: bool = Field(
+        default=False,
+        description="Explicitly enable X-Dev-Bypass header. Requires environment=development.",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
