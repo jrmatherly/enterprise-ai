@@ -58,8 +58,9 @@ async def fetch_jwks(force_refresh: bool = False) -> dict:
         return _jwks_cache
 
     settings = get_settings()
-    # In Docker, use internal network; otherwise use localhost
-    jwks_url = f"{settings.better_auth_url}/api/auth/jwks"
+    # Use internal URL for JWKS fetch (Docker network) if available, otherwise external
+    base_url = settings.better_auth_internal_url or settings.better_auth_url
+    jwks_url = f"{base_url}/api/auth/jwks"
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

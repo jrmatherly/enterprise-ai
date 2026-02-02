@@ -24,11 +24,18 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Copy alembic config for migrations
 COPY alembic.ini ./
 
+# Copy and set up entrypoint script for automatic migrations
+COPY dev/scripts/backend-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Source code is mounted as volume for hot reload
 # COPY src/ ./src/  # Not needed - volume mount instead
 
 # Expose port
 EXPOSE 8000
+
+# Entrypoint runs migrations before starting the app
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Run with hot reload (watch src directory)
 # Uses uv run to ensure correct virtualenv

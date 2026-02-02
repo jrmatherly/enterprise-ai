@@ -57,7 +57,7 @@ class Retriever:
         tenant_id: str,
         group_ids: list[str] | None = None,
         limit: int = 5,
-        score_threshold: float = 0.5,
+        score_threshold: float = 0.2,
         use_cache: bool = True,
     ) -> list[RetrievedChunk]:
         """Retrieve relevant chunks for a query.
@@ -111,15 +111,14 @@ class Retriever:
             )
             result = await db.execute(query_stmt)
             for kb_id, collection_name in result.all():
-                kb_id_to_collection[kb_id] = collection_name
+                kb_id_to_collection[str(kb_id)] = collection_name
 
         # Search each knowledge base
         all_results = []
 
         for kb_id in knowledge_base_ids:
-            collection_name = kb_id_to_collection.get(kb_id)
+            collection_name = kb_id_to_collection.get(str(kb_id))
             if not collection_name:
-                print(f"Warning: No collection found for KB {kb_id}")
                 continue
 
             try:
@@ -148,7 +147,9 @@ class Retriever:
 
             except Exception as e:
                 # Log error but continue with other KBs
-                print(f"Error searching {collection_name}: {e}")
+                import logging
+
+                logging.getLogger(__name__).error(f"Error searching KB {kb_id}: {e}")
                 continue
 
         # Sort by score and limit total results

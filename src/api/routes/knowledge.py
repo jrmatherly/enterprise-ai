@@ -170,8 +170,8 @@ async def list_knowledge_bases(
                 scope=kb.scope.value,
                 document_count=kb.document_count,
                 is_shared=kb.is_shared,
-                created_at=kb.created_at.isoformat() + "Z",
-                updated_at=kb.updated_at.isoformat() + "Z",
+                created_at=kb.created_at.isoformat(),
+                updated_at=kb.updated_at.isoformat(),
             )
             for kb in kbs
         ]
@@ -230,8 +230,8 @@ async def create_knowledge_base(
             scope=kb.scope.value,
             document_count=0,
             is_shared=kb.is_shared,
-            created_at=kb.created_at.isoformat() + "Z",
-            updated_at=kb.updated_at.isoformat() + "Z",
+            created_at=kb.created_at.isoformat(),
+            updated_at=kb.updated_at.isoformat(),
         )
     except Exception as e:
         await db.rollback()
@@ -271,8 +271,8 @@ async def get_knowledge_base(
             scope=kb.scope.value,
             document_count=kb.document_count,
             is_shared=kb.is_shared,
-            created_at=kb.created_at.isoformat() + "Z",
-            updated_at=kb.updated_at.isoformat() + "Z",
+            created_at=kb.created_at.isoformat(),
+            updated_at=kb.updated_at.isoformat(),
         )
     except HTTPException:
         raise
@@ -397,8 +397,8 @@ async def list_documents(
                 file_size_bytes=doc.file_size_bytes,
                 status=doc.status.value,
                 chunk_count=doc.chunk_count,
-                created_at=doc.created_at.isoformat() + "Z",
-                processed_at=doc.processed_at.isoformat() + "Z" if doc.processed_at else None,
+                created_at=doc.created_at.isoformat(),
+                processed_at=doc.processed_at.isoformat() if doc.processed_at else None,
             )
             for doc in docs
         ]
@@ -498,7 +498,7 @@ async def upload_document(
                 file_size_bytes=doc.file_size_bytes,
                 status=doc.status.value,
                 chunk_count=0,
-                created_at=doc.created_at.isoformat() + "Z",
+                created_at=doc.created_at.isoformat(),
                 processed_at=None,
             )
 
@@ -536,8 +536,8 @@ async def upload_document(
             file_size_bytes=doc.file_size_bytes,
             status=doc.status.value,
             chunk_count=doc.chunk_count,
-            created_at=doc.created_at.isoformat() + "Z",
-            processed_at=doc.processed_at.isoformat() + "Z" if doc.processed_at else None,
+            created_at=doc.created_at.isoformat(),
+            processed_at=doc.processed_at.isoformat() if doc.processed_at else None,
         )
     except Exception as e:
         await db.rollback()

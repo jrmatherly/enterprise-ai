@@ -37,6 +37,7 @@ docs/
 
 # Development
 dev/
+!dev/scripts/
 spikes/
 tests/
 

@@ -94,8 +94,14 @@ mise run ui-shell
 
 ## Database Tasks
 
+**Migrations run automatically on container startup.** Both containers handle this:
+- **Frontend:** Runs `npx better-auth migrate` (creates user, session, account, jwks tables)
+- **Backend:** Runs `alembic upgrade head` (creates application tables)
+
+For manual operations:
+
 ```bash
-# Apply pending migrations
+# Apply pending backend migrations
 mise run db-upgrade
 
 # Generate new migration (after changing models)
@@ -106,6 +112,9 @@ mise run db-downgrade
 
 # Seed development data
 mise run seed
+
+# Run frontend auth migrations manually
+docker exec -it eai-frontend npx better-auth migrate
 ```
 
 ## Alternative: Local Development Workflow

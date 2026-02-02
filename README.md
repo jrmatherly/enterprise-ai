@@ -63,12 +63,13 @@ Services:
 ## Documentation
 
 - [Documentation Index](docs/README.md) — Complete docs directory
+- [Development Setup](docs/setup/SETUP.md) — Getting started
 - [Environment Variables](docs/setup/ENVIRONMENT-VARIABLES.md) — Complete env var reference
+- [Azure AI Foundry Setup](docs/setup/AZURE-AI-FOUNDRY-SETUP.md) — Model deployment guide
+- [Authentication Architecture](docs/architecture/AUTHENTICATION.md) — better-auth, JWT/JWKS flow
+- [Frontend Architecture](docs/architecture/FRONTEND-ARCHITECTURE.md) — Next.js app structure
 - [Contributing Guide](docs/development/CONTRIBUTING.md) — Git workflow, commit conventions
-- [Development Setup](docs/setup/SETUP.md)
-- [Frontend Architecture](docs/architecture/FRONTEND-ARCHITECTURE.md)
-- [Implementation Plan](docs/IMPLEMENTATION-PLAN.md)
-- [Mise Enhancements](docs/development/MISE-ENHANCEMENT-OPPORTUNITIES.md)
+- [Implementation Plan](docs/IMPLEMENTATION-PLAN.md) — Project roadmap
 
 ## License
 

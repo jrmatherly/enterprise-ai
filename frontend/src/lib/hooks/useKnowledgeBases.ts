@@ -11,7 +11,7 @@ export interface KnowledgeBase {
   document_count: number;
   is_shared: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 export interface Document {

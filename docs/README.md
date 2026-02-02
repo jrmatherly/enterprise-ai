@@ -23,9 +23,10 @@ System design, infrastructure, and technical architecture documentation.
 
 |----------|-------------|
 | [MVP Architecture](architecture/MVP-ARCHITECTURE.md) | Core architecture, components, and design decisions |
+| [Authentication](architecture/AUTHENTICATION.md) | Auth flow, better-auth, JWT/JWKS verification |
+| [Frontend Architecture](architecture/FRONTEND-ARCHITECTURE.md) | Next.js app structure and patterns |
 | [Enterprise Concerns](architecture/ENTERPRISE-ARCHITECTURE-CONCERNS.md) | Security, compliance, and enterprise considerations |
 | [Infrastructure Alignment](architecture/INFRASTRUCTURE-ALIGNMENT.md) | Cloud infrastructure and deployment patterns |
-| [Frontend Architecture](architecture/FRONTEND-ARCHITECTURE.md) | Next.js app structure and patterns |
 
 ---
 
@@ -79,5 +80,7 @@ Technical references and analysis documents.
 
 - **Start Development**: [Setup Guide](setup/SETUP.md)
 - **Configure Environment**: [Environment Variables](setup/ENVIRONMENT-VARIABLES.md)
+- **Azure AI Setup**: [Azure AI Foundry Setup](setup/AZURE-AI-FOUNDRY-SETUP.md)
 - **Understand Architecture**: [MVP Architecture](architecture/MVP-ARCHITECTURE.md)
+- **Authentication Flow**: [Authentication Architecture](architecture/AUTHENTICATION.md)
 - **Contribute**: [Contributing Guide](development/CONTRIBUTING.md)

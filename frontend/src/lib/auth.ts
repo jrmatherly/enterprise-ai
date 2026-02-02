@@ -67,11 +67,17 @@ export const auth = betterAuth({
 
     // JWT plugin - enables backend verification via JWKS
     // Backend can verify tokens at /api/auth/jwks without shared secrets
+    // Using RS256 for python-jose compatibility (EdDSA/Ed25519 not supported)
     jwt({
       jwt: {
         issuer: process.env.BETTER_AUTH_URL || "http://localhost:3001",
         audience: process.env.BETTER_AUTH_URL || "http://localhost:3001",
         expirationTime: "15m", // Short-lived JWTs for security
+      },
+      jwks: {
+        keyPairConfig: {
+          alg: "RS256",
+        },
       },
     }),
 

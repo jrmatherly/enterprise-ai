@@ -241,7 +241,7 @@ class VectorStore:
         user_id: str | None = None,
         group_ids: list[str] | None = None,
         tenant_id: str | None = None,
-        score_threshold: float = 0.5,
+        score_threshold: float = 0.2,
     ) -> list[dict]:
         """Search for similar chunks with access control filtering.
 
@@ -257,6 +257,15 @@ class VectorStore:
         Returns:
             List of matching chunks with scores
         """
+        print(
+            f"[VectorStore.search] Collection: {collection_name}, limit={limit}, threshold={score_threshold}",
+            flush=True,
+        )
+        print(
+            f"[VectorStore.search] user_id={user_id}, tenant_id={tenant_id}, groups={group_ids}",
+            flush=True,
+        )
+
         # Build ACL filter
         filter_conditions = []
 

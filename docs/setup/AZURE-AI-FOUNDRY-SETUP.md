@@ -1,6 +1,30 @@
 # Azure AI Foundry Setup Guide
 
+**Last Updated:** 2026-02-02
+
 This guide covers setting up Azure AI Foundry for the Enterprise AI Platform, including multi-region model access.
+
+---
+
+## ⚠️ Critical: Deployments Required
+
+**The most common error is "DeploymentNotFound".**
+
+Azure OpenAI requires you to **create deployments** before you can use models. The API uses **deployment names**, not model names.
+
+```
+Model available ≠ Model deployed
+```
+
+### Quick Check
+
+If you see this error:
+```
+Error code: 404 - {'error': {'code': 'DeploymentNotFound',
+'message': 'The API deployment for this resource does not exist...'}}
+```
+
+**Solution:** Go to Azure AI Foundry and deploy the model(s) you need.
 
 ---
 
@@ -106,16 +130,35 @@ az cognitiveservices account create \
   --yes
 ```
 
-### Step 2: Deploy Models
+### Step 2: Deploy Models (REQUIRED)
 
-#### Via Azure Portal
-1. Go to each Foundry resource
-2. Navigate to Model Deployments
-3. Deploy the models available in that region:
-   - **East US:** gpt-4o, gpt-4o-mini, text-embedding-ada-002
-   - **East US 2:** gpt-5, Claude models (if available)
+**This is the most critical step.** Without deployments, you'll get "DeploymentNotFound" errors.
+
+#### Via Azure Portal (Recommended)
+
+1. Go to [Azure AI Foundry](https://ai.azure.com) or [Azure OpenAI Studio](https://oai.azure.com)
+2. Select your resource (e.g., `aanopenai` or `ets-east-us2`)
+3. Navigate to **Deployments** → **+ Create deployment**
+4. Configure:
+   - **Model:** Select from available models (e.g., `gpt-4o-mini`)
+   - **Deployment name:** Use the same name as the model for simplicity
+   - **Version:** Use the latest stable version
+   - **TPM quota:** Start with 10K-50K for development
+5. Click **Create**
+
+**Recommended deployments for development:**
+
+| Deployment Name | Model | Purpose | TPM |
+
+|-----------------|-------|---------|-----|
+| `gpt-4o-mini` | gpt-4o-mini | Cost-effective chat | 30K |
+| `gpt-4o` | gpt-4o | Higher quality chat | 30K |
+| `text-embedding-3-small` | text-embedding-3-small | Embeddings | 10K |
+
+> **Tip:** Use the same name for deployment as the model. This matches what the code expects.
 
 #### Via Azure CLI
+
 ```bash
 # Deploy gpt-4o-mini in East US
 az cognitiveservices account deployment create \
@@ -125,8 +168,37 @@ az cognitiveservices account deployment create \
   --model-name "gpt-4o-mini" \
   --model-version "2024-07-18" \
   --model-format "OpenAI" \
+  --sku-capacity 30 \
+  --sku-name "Standard"
+
+# Deploy embeddings model
+az cognitiveservices account deployment create \
+  --name "eai-foundry-eastus" \
+  --resource-group "rg-enterprise-ai" \
+  --deployment-name "text-embedding-3-small" \
+  --model-name "text-embedding-3-small" \
+  --model-version "1" \
+  --model-format "OpenAI" \
   --sku-capacity 10 \
   --sku-name "Standard"
+```
+
+#### Verify Deployments
+
+```bash
+# List deployments
+az cognitiveservices account deployment list \
+  --name "eai-foundry-eastus" \
+  --resource-group "rg-enterprise-ai" \
+  --output table
+```
+
+You should see output like:
+```
+Name                      Model
+------------------------  ----------------------
+gpt-4o-mini               gpt-4o-mini
+text-embedding-3-small    text-embedding-3-small
 ```
 
 ### Step 3: Get Endpoints and Keys
@@ -209,7 +281,7 @@ class AzureAIEndpoint:
     endpoint: str
     api_key: str
     models: list[str]
-    
+
 @dataclass
 class AzureAIConfig:
     """Multi-region Azure AI Foundry configuration."""
@@ -218,12 +290,12 @@ class AzureAIConfig:
     default_model: str
     default_region: str
     api_version: str
-    
+
     @classmethod
     def from_env(cls) -> "AzureAIConfig":
         """Load configuration from environment variables."""
         endpoints = {}
-        
+
         # Discover endpoints from environment
         # Pattern: AZURE_AI_{REGION}_ENDPOINT
         for key, value in os.environ.items():
@@ -231,17 +303,17 @@ class AzureAIConfig:
                 region = key.replace("AZURE_AI_", "").replace("_ENDPOINT", "").lower()
                 api_key_var = f"AZURE_AI_{region.upper()}_API_KEY"
                 models_var = f"AZURE_AI_{region.upper()}_MODELS"
-                
+
                 endpoints[region] = AzureAIEndpoint(
                     endpoint=value,
                     api_key=os.environ.get(api_key_var, ""),
                     models=os.environ.get(models_var, "").split(",")
                 )
-        
+
         # Load model routing
         model_routing_json = os.environ.get("AZURE_AI_MODEL_ROUTING", "{}")
         model_routing = json.loads(model_routing_json)
-        
+
         return cls(
             endpoints=endpoints,
             model_routing=model_routing,
@@ -249,7 +321,7 @@ class AzureAIConfig:
             default_region=os.environ.get("AZURE_AI_DEFAULT_REGION", "eastus"),
             api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
         )
-    
+
     def get_endpoint_for_model(self, model: str) -> AzureAIEndpoint:
         """Get the appropriate endpoint for a given model."""
         region = self.model_routing.get(model, self.default_region)
@@ -266,11 +338,11 @@ from config import AzureAIConfig
 
 class ModelRouter:
     """Routes requests to the appropriate Azure AI Foundry endpoint based on model."""
-    
+
     def __init__(self, config: Optional[AzureAIConfig] = None):
         self.config = config or AzureAIConfig.from_env()
         self._clients: dict[str, AzureOpenAI] = {}
-    
+
     def _get_client(self, region: str) -> AzureOpenAI:
         """Get or create an OpenAI client for a region."""
         if region not in self._clients:
@@ -281,13 +353,13 @@ class ModelRouter:
                 azure_endpoint=endpoint_config.endpoint
             )
         return self._clients[region]
-    
+
     def get_client_for_model(self, model: str) -> AzureOpenAI:
         """Get the appropriate client for a given model."""
         endpoint = self.config.get_endpoint_for_model(model)
         region = self.config.model_routing.get(model, self.config.default_region)
         return self._get_client(region)
-    
+
     def chat_completion(self, model: str, messages: list, **kwargs):
         """Route a chat completion request to the appropriate endpoint."""
         client = self.get_client_for_model(model)
@@ -296,7 +368,7 @@ class ModelRouter:
             messages=messages,
             **kwargs
         )
-    
+
     def list_available_models(self) -> list[str]:
         """List all available models across all endpoints."""
         models = []
@@ -336,7 +408,7 @@ config = AzureAIConfig.from_env()
 def create_agent(model: str, name: str, instructions: str):
     """Create an agent using the appropriate endpoint for the model."""
     endpoint_config = config.get_endpoint_for_model(model)
-    
+
     # Option 1: API Key auth
     return AzureOpenAIResponsesClient(
         endpoint=endpoint_config.endpoint,
@@ -347,7 +419,7 @@ def create_agent(model: str, name: str, instructions: str):
         instructions=instructions,
         model=model,
     )
-    
+
     # Option 2: Azure CLI auth (comment out api_key above)
     # return AzureOpenAIResponsesClient(
     #     endpoint=endpoint_config.endpoint,

@@ -202,7 +202,7 @@ async def chat(
                 tenant_id=user.tenant_id,
                 group_ids=user.groups,
                 limit=5,
-                score_threshold=0.5,
+                score_threshold=0.2,
             )
             retrieved_context = [
                 {"text": c.text, "score": c.score, "document_id": c.document_id} for c in chunks
@@ -415,14 +415,17 @@ async def chat_stream(
                 tenant_id=user.tenant_id,
                 group_ids=user.groups,
                 limit=5,
-                score_threshold=0.5,
+                score_threshold=0.2,
             )
             retrieved_context = [
                 {"text": c.text, "score": c.score, "document_id": c.document_id} for c in chunks
             ]
             rag_context_text = retriever.format_context(chunks)
         except Exception as e:
-            print(f"RAG retrieval failed: {e}")
+            # Log but continue without RAG
+            import logging
+
+            logging.getLogger(__name__).error(f"RAG retrieval failed: {e}")
 
     # Build context
     context = ChatContext(

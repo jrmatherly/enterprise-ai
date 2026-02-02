@@ -76,8 +76,8 @@ services:
       AZURE_AI_DEFAULT_REGION: ${AZURE_AI_DEFAULT_REGION:-eastus}
       AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2025-04-01-preview}
 
-      # Model routing - map models to their Azure regions
-      AZURE_AI_MODEL_ROUTING: '{"text-embedding-3-large":"eastus2","text-embedding-3-small":"eastus","text-embedding-ada-002":"eastus","gpt-5-mini":"eastus","gpt-5.1":"eastus2"}'
+      # Model routing - map models to their Azure regions (from .env)
+      AZURE_AI_MODEL_ROUTING: ${AZURE_AI_MODEL_ROUTING:-{}}
 
       # Embeddings
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
@@ -90,8 +90,10 @@ services:
       AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://localhost:8000/auth/callback}
 
       # Better Auth (for JWT validation via JWKS)
-      # In Docker, use internal network name; externally use localhost:3001
-      BETTER_AUTH_URL: http://frontend:3001
+      # External URL matches JWT issuer/audience (what browser sees)
+      BETTER_AUTH_URL: http://localhost:3001
+      # Internal URL for JWKS fetch (Docker network)
+      BETTER_AUTH_INTERNAL_URL: http://frontend:3001
 
       # App settings
       APP_NAME: "Enterprise AI Platform"

@@ -1,13 +1,41 @@
 /**
  * API Proxy Route
  *
- * Forwards all /api/v1/* requests to the backend, including cookies.
- * This is needed because Next.js rewrites don't automatically forward cookies.
+ * Forwards all /api/v1/* requests to the backend with JWT authentication.
+ * Uses better-auth API directly to get JWT for authenticated sessions.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+
+/**
+ * Get a JWT token for the current session using better-auth API.
+ */
+async function getJwtToken(request: NextRequest): Promise<string | null> {
+  try {
+    // Use better-auth's api.getSession with the request headers
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session?.session) {
+      return null;
+    }
+
+    // Generate JWT for the session
+    // The JWT plugin adds a token method to the session
+    const tokenResponse = await auth.api.getToken({
+      headers: request.headers,
+    });
+
+    return tokenResponse?.token || null;
+  } catch (error) {
+    console.error("Error getting JWT token:", error);
+    return null;
+  }
+}
 
 async function proxyRequest(request: NextRequest, path: string[]) {
   const url = new URL(`/api/v1/${path.join("/")}`, BACKEND_URL);
@@ -17,32 +45,40 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     url.searchParams.set(key, value);
   });
 
-  // Build headers, forwarding cookies
-  const headers = new Headers();
+  // Build headers
+  const reqHeaders = new Headers();
 
-  // Forward the cookie header (includes better-auth session)
-  const cookie = request.headers.get("cookie");
-  if (cookie) {
-    headers.set("cookie", cookie);
+  // Get JWT token from session and add as Authorization header
+  const jwtToken = await getJwtToken(request);
+  if (jwtToken) {
+    reqHeaders.set("Authorization", `Bearer ${jwtToken}`);
   }
 
   // Forward Content-Type (important for multipart/form-data)
   const contentType = request.headers.get("content-type");
   if (contentType) {
-    headers.set("Content-Type", contentType);
+    reqHeaders.set("Content-Type", contentType);
   }
 
-  // Forward other relevant headers
-  const forwardHeaders = ["authorization", "x-dev-bypass", "accept"];
+  // Forward other relevant headers (but prefer our JWT over incoming auth)
+  const forwardHeaders = ["x-dev-bypass", "accept"];
   forwardHeaders.forEach((h) => {
     const value = request.headers.get(h);
-    if (value) headers.set(h, value);
+    if (value) reqHeaders.set(h, value);
   });
+
+  // Only forward incoming authorization if we didn't get a JWT
+  if (!reqHeaders.has("Authorization")) {
+    const incomingAuth = request.headers.get("authorization");
+    if (incomingAuth) {
+      reqHeaders.set("Authorization", incomingAuth);
+    }
+  }
 
   // Make the proxied request
   const fetchOptions: RequestInit = {
     method: request.method,
-    headers,
+    headers: reqHeaders,
   };
 
   // Include body for non-GET requests

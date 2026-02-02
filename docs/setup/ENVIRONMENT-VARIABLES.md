@@ -173,18 +173,24 @@ These variables are used by the Next.js frontend.
 ### Better Auth
 
 | Variable | Default | Required | Description |
+
 |----------|---------|----------|-------------|
 | `BETTER_AUTH_SECRET` | — | **Yes** | Session encryption secret (32+ chars) |
-| `BETTER_AUTH_URL` | `http://localhost:3001` | No | Frontend auth base URL |
+| `BETTER_AUTH_URL` | `http://localhost:3001` | **Yes** | Frontend auth base URL (external URL for JWT validation) |
+| `BETTER_AUTH_INTERNAL_URL` | `http://frontend:3001` | **Yes** | Internal URL for JWKS fetch (Docker network) |
 | `DATABASE_URL` | — | **Yes** | PostgreSQL URL (same DB as backend) |
 
+> **Important:** Two URLs are required for Docker environments:
+> - `BETTER_AUTH_URL` — External URL (http://localhost:3001) used for JWT issuer/audience validation
+> - `BETTER_AUTH_INTERNAL_URL` — Docker network URL (http://frontend:3001) used by backend to fetch JWKS
+>
 > **Note:** `BETTER_AUTH_SECRET` is separate from Langfuse's `NEXTAUTH_SECRET`. Both should be set in `dev/.env`.
 
 The frontend exposes two endpoints for backend JWT verification:
-- `/api/auth/jwks` — Public keys for verifying JWTs
+- `/api/auth/jwks` — Public keys for verifying JWTs (RS256 algorithm)
 - `/api/auth/token` — Get a JWT for the current session
 
-The backend uses JWKS to verify JWTs without needing shared secrets.
+The backend uses JWKS to verify JWTs without needing shared secrets. See [Authentication Architecture](../architecture/AUTHENTICATION.md) for details.
 
 ### Microsoft Entra ID
 
@@ -305,6 +311,27 @@ Verify:
 2. `AZURE_AI_*_API_KEY` is correct
 3. Model is deployed in Azure AI Foundry
 4. Model is listed in `AZURE_AI_*_MODELS`
+
+### Azure AI returns 404 DeploymentNotFound
+**This is the most common error.** It means the model exists but hasn't been deployed.
+
+**Fix:**
+1. Go to [Azure AI Foundry](https://ai.azure.com) or [Azure OpenAI Studio](https://oai.azure.com)
+2. Select your resource
+3. Navigate to **Deployments** → **+ Create deployment**
+4. Deploy the model with a name matching `AZURE_AI_DEFAULT_MODEL`
+5. Use the deployment name in your config (not the model name)
+
+See [Azure AI Foundry Setup](./AZURE-AI-FOUNDRY-SETUP.md) for detailed instructions.
+
+### Better Auth JWT validation fails
+Verify:
+1. `BETTER_AUTH_URL` matches in frontend and backend (http://localhost:3001)
+2. `BETTER_AUTH_INTERNAL_URL` uses Docker network name (http://frontend:3001)
+3. JWKS endpoint responds: `curl http://localhost:3001/api/auth/jwks`
+4. Frontend container has run migrations: `docker exec eai-frontend npx better-auth migrate`
+
+See [Authentication Architecture](../architecture/AUTHENTICATION.md) for the full auth flow.
 
 ---
 

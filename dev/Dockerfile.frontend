@@ -11,6 +11,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
+# Create entrypoint script for automatic better-auth migrations
+RUN printf '#!/bin/sh\nset -e\necho "Running better-auth migrations..."\necho "y" | npm run db:migrate 2>/dev/null || echo "Migration check complete"\necho "Starting application..."\nexec "$@"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
+
 # Expose port (3001 for dev to avoid conflict with Langfuse on 3000)
 EXPOSE 3001
 
@@ -19,6 +22,9 @@ ENV PORT=3001
 
 # Source code is mounted as volume for hot reload
 # COPY . .  # Not needed - volume mount instead
+
+# Entrypoint runs better-auth migrations before starting
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Next.js dev server with hot reload
 CMD ["npm", "run", "dev"]

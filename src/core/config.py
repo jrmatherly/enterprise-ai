@@ -149,7 +149,8 @@ class Settings(BaseSettings):
     # ============================================
     # Better Auth (Frontend Session Management)
     # ============================================
-    better_auth_url: str = "http://localhost:3001"  # Frontend URL for JWKS
+    better_auth_url: str = "http://localhost:3001"  # JWT issuer/audience (external)
+    better_auth_internal_url: str | None = None  # Internal URL for JWKS fetch (Docker)
 
     # ============================================
     # Rate Limiting
