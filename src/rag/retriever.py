@@ -4,6 +4,7 @@ Combines embedding and vector search for document retrieval.
 Includes optional semantic caching.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -17,6 +18,8 @@ from src.rag.vector_store import VectorStore, get_vector_store
 
 if TYPE_CHECKING:
     from src.rag.semantic_cache import SemanticCache
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -147,9 +150,7 @@ class Retriever:
 
             except Exception as e:
                 # Log error but continue with other KBs
-                import logging
-
-                logging.getLogger(__name__).error(f"Error searching KB {kb_id}: {e}")
+                logger.exception("Error searching KB %s: %s", kb_id, e)
                 continue
 
         # Sort by score and limit total results

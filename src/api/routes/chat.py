@@ -210,7 +210,9 @@ async def chat(
             rag_context_text = retriever.format_context(chunks)
         except Exception as e:
             # Log but continue without RAG
-            print(f"RAG retrieval failed: {e}")
+            import logging
+
+            logging.getLogger(__name__).error(f"RAG retrieval failed: {e}")
 
     # Build context
     context = ChatContext(
@@ -456,7 +458,7 @@ async def chat_stream(
             "based on your general knowledge.\n\n"
             f"Retrieved Context:\n{rag_context_text}"
         )
-        messages.append(ChatMessage(role="system", content=rag_system_msg))
+        messages.insert(0, ChatMessage(role="system", content=rag_system_msg))
 
     messages.append(ChatMessage(role="user", content=body.message))
 

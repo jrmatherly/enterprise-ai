@@ -285,23 +285,12 @@ function CreateKBModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent | React.KeyboardEvent) => {
-    if (
-      e.type === "click" ||
-      (e.type === "keydown" && (e as React.KeyboardEvent).key === "Escape")
-    ) {
-      onClose();
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        className="absolute inset-0"
-        onClick={handleBackdropClick}
-        onKeyDown={handleBackdropClick}
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
         aria-label="Close modal"
       />
       <div className="relative w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl">
@@ -421,23 +410,12 @@ function DeleteKBModal({
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent | React.KeyboardEvent) => {
-    if (
-      e.type === "click" ||
-      (e.type === "keydown" && (e as React.KeyboardEvent).key === "Escape")
-    ) {
-      onClose();
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        className="absolute inset-0"
-        onClick={handleBackdropClick}
-        onKeyDown={handleBackdropClick}
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
         aria-label="Close modal"
       />
       <div className="relative w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl">
