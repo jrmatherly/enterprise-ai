@@ -240,9 +240,10 @@ async def chat(
     # Add RAG context as system message if available
     if rag_context_text:
         rag_system_msg = (
-            "Use the following retrieved context to help answer the user's question. "
-            "If the context doesn't contain relevant information, say so and answer "
-            "based on your general knowledge.\n\n"
+            "Use the following retrieved context to answer the user's question. "
+            "IMPORTANT: When using information from the context, cite your sources "
+            "using the bracket notation [1], [2], etc. that matches the source numbers. "
+            "If the context doesn't contain relevant information, say so clearly.\n\n"
             f"Retrieved Context:\n{rag_context_text}"
         )
         messages.append(ChatMessage(role="system", content=rag_system_msg))
@@ -453,9 +454,10 @@ async def chat_stream(
     # Add RAG context as system message if available
     if rag_context_text:
         rag_system_msg = (
-            "Use the following retrieved context to help answer the user's question. "
-            "If the context doesn't contain relevant information, say so and answer "
-            "based on your general knowledge.\n\n"
+            "Use the following retrieved context to answer the user's question. "
+            "IMPORTANT: When using information from the context, cite your sources "
+            "using the bracket notation [1], [2], etc. that matches the source numbers. "
+            "If the context doesn't contain relevant information, say so clearly.\n\n"
             f"Retrieved Context:\n{rag_context_text}"
         )
         messages.insert(0, ChatMessage(role="system", content=rag_system_msg))

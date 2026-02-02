@@ -184,23 +184,32 @@ class Retriever:
         chunks: list[RetrievedChunk],
         max_chars: int = 8000,
     ) -> str:
-        """Format retrieved chunks as context for the LLM.
+        """Format retrieved chunks as context for the LLM with citations.
 
         Args:
             chunks: Retrieved chunks
             max_chars: Maximum context length
 
         Returns:
-            Formatted context string
+            Formatted context string with source references
         """
         if not chunks:
             return ""
 
         context_parts = []
+        citation_refs = []
         total_chars = 0
 
         for i, chunk in enumerate(chunks, 1):
-            chunk_text = f"[Source {i}]\n{chunk.text}\n"
+            # Extract citation metadata
+            filename = chunk.metadata.get("filename", "Unknown Document")
+            chunk_idx = chunk.chunk_index
+
+            # Build citation reference
+            citation_refs.append(f"[{i}] {filename} (Section {chunk_idx + 1})")
+
+            # Format chunk with source marker
+            chunk_text = f"[{i}] {chunk.text}\n"
 
             if total_chars + len(chunk_text) > max_chars:
                 break
@@ -208,7 +217,11 @@ class Retriever:
             context_parts.append(chunk_text)
             total_chars += len(chunk_text)
 
-        return "\n".join(context_parts)
+        # Build final context with citation legend at the end
+        context = "\n".join(context_parts)
+        citations = "\n".join(citation_refs[: len(context_parts)])
+
+        return f"{context}\n\n---\nSources:\n{citations}"
 
     def build_rag_prompt(
         self,
