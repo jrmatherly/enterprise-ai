@@ -56,8 +56,12 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
                 />
               ))}
 
-              {isStreaming && streamingContent && (
-                <StreamingMessage content={streamingContent} />
+              {isStreaming && (
+                streamingContent ? (
+                  <StreamingMessage content={streamingContent} />
+                ) : (
+                  <ThinkingIndicator />
+                )
               )}
             </>
           )}
@@ -78,6 +82,27 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
             disabled={isStreaming || isLoadingHistory}
             placeholder="Send a message..."
           />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThinkingIndicator() {
+  return (
+    <div className="flex gap-3">
+      {/* Avatar */}
+      <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-neutral-700 text-xs font-medium text-neutral-300">
+        AI
+      </div>
+
+      {/* Thinking Animation */}
+      <div className="rounded-2xl bg-neutral-800 px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <div className="size-2 rounded-full bg-neutral-500 animate-bounce [animation-delay:-0.3s]" />
+          <div className="size-2 rounded-full bg-neutral-500 animate-bounce [animation-delay:-0.15s]" />
+          <div className="size-2 rounded-full bg-neutral-500 animate-bounce" />
+          <span className="ml-2 text-sm text-neutral-400">Thinking...</span>
         </div>
       </div>
     </div>

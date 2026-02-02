@@ -559,6 +559,12 @@ async def chat_stream(
                     await db.commit()
 
                     # Build sources from retrieved context with page numbers
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.info(
+                        f"[chat_stream] Building sources, retrieved_context has {len(retrieved_context)} items"
+                    )
                     sources = None
                     if retrieved_context:
                         import re
@@ -614,6 +620,9 @@ async def chat_stream(
                         final_data["title"] = generated_title
                     if sources:
                         final_data["sources"] = sources
+                        logger.info(f"[chat_stream] Including {len(sources)} sources in final_data")
+                    else:
+                        logger.info("[chat_stream] No sources to include in final_data")
                     yield f"data: {json.dumps(final_data)}\n\n"
 
             yield "data: [DONE]\n\n"
