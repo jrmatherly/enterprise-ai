@@ -324,28 +324,49 @@ async def chat(
             await session_repo.set_title(session.id, title)
             await db.commit()
 
-        # Build sources from retrieved context
+        # Build sources from retrieved context with page numbers
         sources = None
         if retrieved_context:
+            import re
+
             # Get document info for sources
             from src.db.models import Document
 
             doc_ids = list({r["document_id"] for r in retrieved_context})
             doc_query = select(Document).where(Document.id.in_(doc_ids))
             doc_result = await db.execute(doc_query)
-            docs = {d.id: d for d in doc_result.scalars().all()}
+            docs = {str(d.id): d for d in doc_result.scalars().all()}
 
-            sources = [
-                {
-                    "document_id": r["document_id"],
-                    "filename": docs.get(
-                        r["document_id"], type("", (), {"filename": "unknown"})
-                    ).filename,
-                    "score": round(r["score"], 3),
-                    "excerpt": r["text"][:200] + "..." if len(r["text"]) > 200 else r["text"],
-                }
-                for r in retrieved_context[:5]  # Top 5 sources
-            ]
+            def extract_pages(text: str) -> str | None:
+                """Extract page numbers from [Page X] markers."""
+                pattern = r"\[Page\s+(\d+)\]"
+                matches = re.findall(pattern, text, re.IGNORECASE)
+                if matches:
+                    pages = sorted({int(m) for m in matches})
+                    if len(pages) == 1:
+                        return f"Page {pages[0]}"
+                    if pages == list(range(pages[0], pages[-1] + 1)):
+                        return f"Pages {pages[0]}-{pages[-1]}"
+                    return f"Pages {', '.join(str(p) for p in pages)}"
+                return None
+
+            sources = []
+            for i, r in enumerate(retrieved_context[:5], 1):  # Top 5 sources
+                content = r.get("content", "")
+                doc = docs.get(str(r["document_id"]))
+                filename = doc.filename if doc else r.get("filename", "Unknown")
+                page_ref = extract_pages(content)
+
+                sources.append(
+                    {
+                        "ref": i,
+                        "document_id": str(r["document_id"]),
+                        "filename": filename,
+                        "page": page_ref,
+                        "score": round(r["score"], 3),
+                        "excerpt": content[:500] + "..." if len(content) > 500 else content,
+                    }
+                )
 
         return ChatResponse(
             session_id=session.id,
@@ -537,7 +558,52 @@ async def chat_stream(
 
                     await db.commit()
 
-                    # Send final event (include title if generated)
+                    # Build sources from retrieved context with page numbers
+                    sources = None
+                    if retrieved_context:
+                        import re
+
+                        from src.db.models import Document
+
+                        doc_ids = list({r["document_id"] for r in retrieved_context})
+                        doc_query = select(Document).where(Document.id.in_(doc_ids))
+                        doc_result = await db.execute(doc_query)
+                        docs = {str(d.id): d for d in doc_result.scalars().all()}
+
+                        def extract_pages(text: str) -> str | None:
+                            """Extract page numbers from [Page X] markers."""
+                            pattern = r"\[Page\s+(\d+)\]"
+                            matches = re.findall(pattern, text, re.IGNORECASE)
+                            if matches:
+                                pages = sorted({int(m) for m in matches})
+                                if len(pages) == 1:
+                                    return f"Page {pages[0]}"
+                                if pages == list(range(pages[0], pages[-1] + 1)):
+                                    return f"Pages {pages[0]}-{pages[-1]}"
+                                return f"Pages {', '.join(str(p) for p in pages)}"
+                            return None
+
+                        sources = []
+                        for i, r in enumerate(retrieved_context[:5], 1):
+                            content = r.get("content", "")
+                            doc = docs.get(str(r["document_id"]))
+                            filename = doc.filename if doc else r.get("filename", "Unknown")
+                            page_ref = extract_pages(content)
+
+                            sources.append(
+                                {
+                                    "ref": i,
+                                    "document_id": str(r["document_id"]),
+                                    "filename": filename,
+                                    "page": page_ref,
+                                    "score": round(r["score"], 3),
+                                    "excerpt": content[:500] + "..."
+                                    if len(content) > 500
+                                    else content,
+                                }
+                            )
+
+                    # Send final event (include title and sources if available)
                     final_data = {
                         "done": True,
                         "session_id": session.id,
@@ -546,6 +612,8 @@ async def chat_stream(
                     }
                     if generated_title:
                         final_data["title"] = generated_title
+                    if sources:
+                        final_data["sources"] = sources
                     yield f"data: {json.dumps(final_data)}\n\n"
 
             yield "data: [DONE]\n\n"
