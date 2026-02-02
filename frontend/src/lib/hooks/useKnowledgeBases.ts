@@ -11,6 +11,7 @@ export interface KnowledgeBase {
   document_count: number;
   is_shared: boolean;
   system_prompt: string | null;
+  grounded_only: boolean;
   created_at: string;
   updated_at: string | null;
 }
@@ -31,12 +32,14 @@ export interface CreateKBRequest {
   description?: string;
   scope?: "personal" | "team" | "department" | "organization";
   system_prompt?: string;
+  grounded_only?: boolean;
 }
 
 export interface UpdateKBRequest {
   name?: string;
   description?: string;
   system_prompt?: string | null;
+  grounded_only?: boolean;
 }
 
 /**

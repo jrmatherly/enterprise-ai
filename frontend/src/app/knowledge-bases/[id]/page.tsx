@@ -253,14 +253,15 @@ function ScopeBadge({ scope }: { scope: string }) {
 	);
 }
 
-function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | null } }) {
+function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | null; grounded_only: boolean } }) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [instructions, setInstructions] = useState(kb.system_prompt || "");
+	const [groundedOnly, setGroundedOnly] = useState(kb.grounded_only);
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 	const updateKB = useUpdateKnowledgeBase();
 
-	const hasChanges = instructions !== (kb.system_prompt || "");
+	const hasChanges = instructions !== (kb.system_prompt || "") || groundedOnly !== kb.grounded_only;
 
 	const handleSave = async () => {
 		setIsSaving(true);
@@ -268,12 +269,15 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 		try {
 			await updateKB.mutateAsync({
 				kbId: kb.id,
-				data: { system_prompt: instructions || null },
+				data: {
+					system_prompt: instructions || null,
+					grounded_only: groundedOnly,
+				},
 			});
 			setSaveStatus("saved");
 			setTimeout(() => setSaveStatus("idle"), 2000);
 		} catch (err) {
-			console.error("Failed to save instructions:", err);
+			console.error("Failed to save settings:", err);
 			setSaveStatus("error");
 		} finally {
 			setIsSaving(false);
@@ -309,11 +313,17 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 					</svg>
 					<div>
 						<span className="font-medium text-neutral-200">Settings</span>
-						{kb.system_prompt && (
-							<span className="ml-2 text-xs text-neutral-500">
-								• Custom instructions configured
-							</span>
-						)}
+						<span className="ml-2 flex items-center gap-2 text-xs text-neutral-500">
+							{kb.system_prompt && <span>• Custom instructions</span>}
+							{kb.grounded_only && (
+								<span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-400 ring-1 ring-amber-500/20">
+									<svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+									</svg>
+									Grounded
+								</span>
+							)}
+						</span>
 					</div>
 				</div>
 				<svg
@@ -329,43 +339,104 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 			</button>
 
 			{isExpanded && (
-				<div className="border-t border-neutral-800 px-5 py-4">
-					<label className="mb-2 block text-sm font-medium text-neutral-300">
-						Custom Instructions
-					</label>
-					<textarea
-						value={instructions}
-						onChange={(e) => setInstructions(e.target.value)}
-						placeholder="Define acronyms, terminology, or specific instructions for how the AI should interact with this knowledge base.
-
-Example:
-- 'API' refers to Application Programming Interface
-- 'SLA' refers to Service Level Agreement
-- Always include document section numbers when citing sources
-- Format dates as YYYY-MM-DD"
-						rows={6}
-						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
-					/>
-					<div className="mt-3 flex items-center justify-between">
-						<p className="text-xs text-neutral-500">
-							These instructions will be included when the AI retrieves content from this knowledge base.
-						</p>
-						<div className="flex items-center gap-3">
-							{saveStatus === "saved" && (
-								<span className="text-xs text-emerald-400">✓ Saved</span>
-							)}
-							{saveStatus === "error" && (
-								<span className="text-xs text-red-400">Failed to save</span>
-							)}
-							<button
-								type="button"
-								onClick={handleSave}
-								disabled={!hasChanges || isSaving}
-								className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								{isSaving ? "Saving..." : "Save"}
-							</button>
+				<div className="border-t border-neutral-800 px-5 py-4 space-y-6">
+					{/* Grounded Mode Toggle */}
+					<div className="flex items-start justify-between gap-4 rounded-lg border border-neutral-700/50 bg-neutral-800/50 p-4">
+						<div className="flex-1">
+							<div className="flex items-center gap-2">
+								<svg className="size-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+								</svg>
+								<span className="font-medium text-neutral-200">Grounded Mode</span>
+							</div>
+							<p className="mt-1 text-sm text-neutral-500">
+								When enabled, the AI will <strong className="text-neutral-300">only</strong> respond using content from this knowledge base.
+								It will not use external knowledge or make assumptions.
+							</p>
 						</div>
+						<button
+							type="button"
+							role="switch"
+							aria-checked={groundedOnly}
+							onClick={() => setGroundedOnly(!groundedOnly)}
+							className={cn(
+								"relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-neutral-900",
+								groundedOnly ? "bg-amber-500" : "bg-neutral-700"
+							)}
+						>
+							<span
+								className={cn(
+									"pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+									groundedOnly ? "translate-x-5" : "translate-x-0"
+								)}
+							/>
+						</button>
+					</div>
+
+					{/* Custom Instructions */}
+					<div>
+						<div className="mb-2 flex items-center justify-between">
+							<label className="block text-sm font-medium text-neutral-300">
+								Custom Instructions
+							</label>
+							<a
+								href="https://github.com/your-org/enterprise-ai-platform/blob/main/docs/reference/KB-CUSTOM-INSTRUCTIONS-TEMPLATE.md"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+							>
+								<svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+								</svg>
+								View template
+							</a>
+						</div>
+						<textarea
+							value={instructions}
+							onChange={(e) => setInstructions(e.target.value)}
+							placeholder={`You are [Assistant Name], an AI assistant created by [Organization].
+
+<principles>
+## Core Behaviors
+- Be direct and cite specific sources for every claim
+- If information is not in the knowledge base, say so clearly
+
+## Tone & Style
+- Professional but approachable
+- Cite sources as: [Source: filename, Section X]
+
+## Domain Terms
+- [ACRONYM] = [Full Term]
+</principles>
+
+<constraints>
+- Do not answer questions outside the knowledge base scope
+- Do not make assumptions or use external knowledge
+</constraints>`}
+							rows={12}
+							className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none font-mono"
+						/>
+						<p className="mt-2 text-xs text-neutral-500">
+							Define the AI&apos;s persona, behavior, and constraints. Reference documents using <code className="rounded bg-neutral-800 px-1 py-0.5 text-neutral-400">&lt;retrieved_context&gt;</code>.
+						</p>
+					</div>
+
+					{/* Save Button */}
+					<div className="flex items-center justify-end gap-3 pt-2">
+						{saveStatus === "saved" && (
+							<span className="text-xs text-emerald-400">✓ Saved</span>
+						)}
+						{saveStatus === "error" && (
+							<span className="text-xs text-red-400">Failed to save</span>
+						)}
+						<button
+							type="button"
+							onClick={handleSave}
+							disabled={!hasChanges || isSaving}
+							className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{isSaving ? "Saving..." : "Save Changes"}
+						</button>
 					</div>
 				</div>
 			)}
