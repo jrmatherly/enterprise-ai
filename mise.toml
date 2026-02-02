@@ -9,6 +9,9 @@
 #   mise run setup           # First-time setup (install deps + start Docker + migrate DB)
 #   mise run dev             # Start development (Docker + API server)
 #   mise run stop            # Stop everything
+# https://mise.jdx.dev/configuration.html
+
+min_version = "2026.1.0"
 
 [tools]
 hk = "1.35.0"
@@ -24,6 +27,9 @@ uv = "latest"
 # Environment Configuration
 # ============================================
 [env]
+# Suppress Node.js deprecation warnings (punycode warning from hk/older deps)
+NODE_OPTIONS = "--no-deprecation"
+
 # Automatically create and activate venv using uv
 _.python.venv = { path = ".venv", create = true }
 
