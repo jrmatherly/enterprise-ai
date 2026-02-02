@@ -156,3 +156,35 @@ Then manually update hooks for silent mode:
 # Edit .git/hooks/pre-commit and .git/hooks/commit-msg
 # Add: > /dev/null 2>&1
 ```
+
+## Database Migrations
+
+**Always use Alembic to generate migrations:**
+
+```bash
+# From dev directory, generate a new migration
+docker compose exec backend uv run alembic revision --autogenerate -m "Description of change"
+
+# Or locally with uv
+uv run alembic revision --autogenerate -m "Description of change"
+```
+
+**Never create migration files manually** - Alembic automatically:
+- Sets the correct `down_revision` (parent migration)
+- Detects schema changes from SQLAlchemy models
+- Handles the revision chain properly
+
+**Migrations run automatically on container startup** via `dev/scripts/backend-entrypoint.sh`.
+
+### Checking Migration Status
+
+```bash
+# Current migration version
+docker compose exec backend uv run alembic current
+
+# Migration history
+docker compose exec backend uv run alembic history
+
+# Pending migrations
+docker compose exec backend uv run alembic upgrade head --sql
+```
