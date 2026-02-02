@@ -57,7 +57,7 @@ export function MessageInput({
   };
 
   const removeKB = (id: string) => {
-    setSelectedKBIds((prev) => prev.filter((kbId) => kbId !== id));
+    setSelectedKBIds(selectedKBIds.filter((kbId) => kbId !== id));
   };
 
   return (
@@ -89,6 +89,7 @@ export function MessageInput({
 
           {/* Send Button */}
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={disabled || !value.trim()}
             className={cn(
@@ -105,6 +106,7 @@ export function MessageInput({
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -145,6 +147,7 @@ export function MessageInput({
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={1.5}
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"

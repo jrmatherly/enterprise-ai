@@ -34,6 +34,7 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
   }, [sessionId]);
 
   // Auto-scroll to bottom on new messages or streaming updates
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll when messages/content change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -138,6 +139,7 @@ function EmptyState() {
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={1.25}
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -164,6 +166,7 @@ function EmptyState() {
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
