@@ -173,11 +173,12 @@ These variables are used by the Next.js frontend.
 ### Better Auth
 
 | Variable | Default | Required | Description |
-
 |----------|---------|----------|-------------|
 | `BETTER_AUTH_SECRET` | — | **Yes** | Session encryption secret (32+ chars) |
-| `BETTER_AUTH_URL` | `http://localhost:3001` | No | Auth base URL |
+| `BETTER_AUTH_URL` | `http://localhost:3001` | No | Frontend auth base URL |
 | `DATABASE_URL` | — | **Yes** | PostgreSQL URL (same DB as backend) |
+
+> **Note:** `BETTER_AUTH_SECRET` is separate from Langfuse's `NEXTAUTH_SECRET`. Both should be set in `dev/.env`.
 
 ### Microsoft Entra ID
 

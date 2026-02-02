@@ -151,8 +151,8 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
 
       # Better Auth configuration
-      BETTER_AUTH_SECRET: ${NEXTAUTH_SECRET:-changeme-generate-random-secret}
-      BETTER_AUTH_URL: http://localhost:3001
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-changeme-generate-random-secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${APP_DB:-eai}
 
       # Microsoft EntraID
