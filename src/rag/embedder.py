@@ -3,7 +3,6 @@
 Generates vector embeddings for text chunks and queries.
 """
 
-
 import httpx
 from openai import AsyncAzureOpenAI
 
@@ -34,7 +33,7 @@ class Embedder:
             text: Text to embed
 
         Returns:
-            Embedding vector (1536 dimensions)
+            Embedding vector (dimensions depend on model: 1536 for small, 3072 for large)
         """
         # Clean text
         text = text.strip()
@@ -84,7 +83,11 @@ class Embedder:
                 all_embeddings[original_idx] = response.data[j].embedding
 
         # Fill empty text positions with zero vectors
-        zero_vector = [0.0] * 1536
+        # Use same dimension as returned embeddings (varies by model)
+        embedding_dim = len(
+            all_embeddings[next(i for i, e in enumerate(all_embeddings) if e is not None)]
+        )
+        zero_vector = [0.0] * embedding_dim
         for i in range(len(all_embeddings)):
             if all_embeddings[i] is None:
                 all_embeddings[i] = zero_vector

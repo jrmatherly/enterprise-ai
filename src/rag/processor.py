@@ -110,6 +110,12 @@ class DocumentProcessor:
                 # Generate deterministic UUID for chunk (document_id + chunk_index)
                 # This ensures idempotent re-processing
                 chunk_id = str(uuid5(NAMESPACE_DNS, f"{document_id}:{i}"))
+
+                # Debug: log first chunk details
+                if i == 0:
+                    logger.info(f"[Processor] First chunk embedding dimension: {len(embedding)}")
+                    logger.info(f"[Processor] First chunk ID: {chunk_id}")
+
                 vector_chunks.append(
                     {
                         "id": chunk_id,

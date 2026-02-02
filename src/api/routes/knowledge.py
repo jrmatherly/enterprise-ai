@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from src.api.deps import DB, CurrentUser
 from src.auth.oidc import UserClaims
+from src.core.config import get_settings
 from src.db.models import Document, DocumentStatus, KnowledgeBase, KnowledgeBaseScope
 from src.rag import get_processor, get_retriever, get_vector_store
 from src.rag.extractors import ExtractionError, get_extractor
@@ -199,6 +200,9 @@ async def create_knowledge_base(
     # Generate unique collection name
     collection_name = f"kb_{str(uuid4()).replace('-', '')}"
 
+    # Get embedding model from config
+    settings = get_settings()
+
     kb = KnowledgeBase(
         id=str(uuid4()),
         tenant_id=user.tenant_id,
@@ -207,6 +211,7 @@ async def create_knowledge_base(
         scope=scope_enum,
         owner_id=user.sub if scope_enum == KnowledgeBaseScope.PERSONAL else None,
         collection_name=collection_name,
+        embedding_model=settings.embedding_model,  # Use configured model
     )
 
     try:

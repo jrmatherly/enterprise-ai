@@ -118,8 +118,22 @@ class VectorStore:
         Returns:
             Number of chunks upserted
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         if not chunks:
             return 0
+
+        # Debug: log upsert details
+        logger.info(
+            f"[VectorStore] Upserting {len(chunks)} chunks to collection '{collection_name}'"
+        )
+        if chunks:
+            first = chunks[0]
+            logger.info(
+                f"[VectorStore] First chunk ID: {first.get('id')}, vector dim: {len(first.get('vector', []))}"
+            )
 
         points = [
             qdrant_models.PointStruct(
@@ -138,12 +152,24 @@ class VectorStore:
             for chunk in chunks
         ]
 
-        self.client.upsert(
-            collection_name=collection_name,
-            points=points,
-        )
+        # Batch upserts to avoid timeout on large payloads
+        # Each vector is ~12KB (3072 floats * 4 bytes), so 100 points = ~1.2MB
+        batch_size = 100
+        total_upserted = 0
 
-        return len(points)
+        for i in range(0, len(points), batch_size):
+            batch = points[i : i + batch_size]
+            logger.info(
+                f"[VectorStore] Upserting batch {i // batch_size + 1}/{(len(points) + batch_size - 1) // batch_size} ({len(batch)} points)"
+            )
+            self.client.upsert(
+                collection_name=collection_name,
+                points=batch,
+            )
+            total_upserted += len(batch)
+
+        logger.info(f"[VectorStore] Successfully upserted {total_upserted} points")
+        return total_upserted
 
     async def delete_document_chunks(
         self,
@@ -290,7 +316,12 @@ def get_vector_store() -> VectorStore:
 
     if _vector_store is None:
         settings = get_settings()
-        client = QdrantClient(url=settings.qdrant_url)
+        # Configure longer timeout for large document processing
+        # Default 5s is too short for batched upserts
+        client = QdrantClient(
+            url=settings.qdrant_url,
+            timeout=60,  # 60 seconds timeout
+        )
         _vector_store = VectorStore(client)
 
     return _vector_store
