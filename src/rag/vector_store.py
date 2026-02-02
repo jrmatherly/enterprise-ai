@@ -50,16 +50,33 @@ class VectorStore:
         if collection_name in existing_names:
             return False
 
-        # Create collection with optimized settings
+        # Create collection with optimized settings for enterprise multitenancy
+        # See: https://qdrant.tech/documentation/guides/multitenancy/
         self.client.create_collection(
             collection_name=collection_name,
             vectors_config=VectorParams(
                 size=dim,
                 distance=Distance.COSINE,
             ),
-            # Enable payload indexing for filtering
+            # Store large text payloads on disk to save RAM
+            on_disk_payload=True,
+            # HNSW config for multitenancy: per-tenant indexes instead of global
+            hnsw_config=qdrant_models.HnswConfigDiff(
+                payload_m=16,  # Build index per partition (tenant)
+                m=16,  # Keep global index for cross-tenant queries
+            ),
+            # Optimizer settings
             optimizers_config=qdrant_models.OptimizersConfigDiff(
                 indexing_threshold=1000,  # Build index after 1000 points
+            ),
+            # Scalar quantization: 4x memory reduction with ~99% accuracy
+            # See: https://qdrant.tech/documentation/guides/quantization/
+            quantization_config=qdrant_models.ScalarQuantization(
+                scalar=qdrant_models.ScalarQuantizationConfig(
+                    type=qdrant_models.ScalarType.INT8,
+                    quantile=0.99,
+                    always_ram=True,  # Keep quantized vectors in RAM for speed
+                ),
             ),
         )
 
@@ -69,10 +86,15 @@ class VectorStore:
             field_name="document_id",
             field_schema=PayloadSchemaType.KEYWORD,
         )
+        # Tenant index with is_tenant=True for optimized multitenancy storage
+        # This co-locates vectors of the same tenant together on disk
         self.client.create_payload_index(
             collection_name=collection_name,
             field_name="tenant_id",
-            field_schema=PayloadSchemaType.KEYWORD,
+            field_schema=qdrant_models.KeywordIndexParams(
+                type=qdrant_models.KeywordIndexType.KEYWORD,
+                is_tenant=True,
+            ),
         )
         self.client.create_payload_index(
             collection_name=collection_name,
