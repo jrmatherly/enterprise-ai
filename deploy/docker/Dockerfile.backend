@@ -1,7 +1,7 @@
-# Enterprise AI Platform - API Service
+# Enterprise AI Platform - Backend API Service
 # Multi-stage build using uv for fast, reproducible installs
 #
-# Build: docker build -f deploy/docker/Dockerfile -t enterprise-ai-platform .
+# Build: docker build -f deploy/docker/Dockerfile.backend -t eai-backend .
 # Run:   docker run -p 8000:8000 enterprise-ai-platform
 
 # ===== Build Stage =====
