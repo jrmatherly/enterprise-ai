@@ -137,7 +137,7 @@ az cognitiveservices account create \
 #### Via Azure Portal (Recommended)
 
 1. Go to [Azure AI Foundry](https://ai.azure.com) or [Azure OpenAI Studio](https://oai.azure.com)
-2. Select your resource (e.g., `aanopenai` or `ets-east-us2`)
+2. Select your resource (e.g., `my-openai-resource` or `my-secondary-resource`)
 3. Navigate to **Deployments** → **+ Create deployment**
 4. Configure:
    - **Model:** Select from available models (e.g., `gpt-4o-mini`)
@@ -239,14 +239,14 @@ All Azure AI configuration should be externalized to environment variables:
 # ============================================
 # Azure AI Foundry - Primary (East US)
 # ============================================
-AZURE_AI_EASTUS_ENDPOINT=https://eai-foundry-eastus.openai.azure.com/
+AZURE_AI_EASTUS_ENDPOINT=https://your-resource-eastus.openai.azure.com/
 AZURE_AI_EASTUS_API_KEY=your-eastus-api-key
 AZURE_AI_EASTUS_MODELS=gpt-4o,gpt-4o-mini,text-embedding-ada-002
 
 # ============================================
 # Azure AI Foundry - Secondary (East US 2)
 # ============================================
-AZURE_AI_EASTUS2_ENDPOINT=https://eai-foundry-eastus2.openai.azure.com/
+AZURE_AI_EASTUS2_ENDPOINT=https://your-resource-eastus2.openai.azure.com/
 AZURE_AI_EASTUS2_API_KEY=your-eastus2-api-key
 AZURE_AI_EASTUS2_MODELS=gpt-5,claude-sonnet-4.5
 
@@ -501,9 +501,9 @@ metadata:
   name: azure-ai-credentials
 type: Opaque
 stringData:
-  AZURE_AI_EASTUS_ENDPOINT: "https://eai-foundry-eastus.openai.azure.com/"
+  AZURE_AI_EASTUS_ENDPOINT: "https://your-resource-eastus.openai.azure.com/"
   AZURE_AI_EASTUS_API_KEY: "your-key"
-  AZURE_AI_EASTUS2_ENDPOINT: "https://eai-foundry-eastus2.openai.azure.com/"
+  AZURE_AI_EASTUS2_ENDPOINT: "https://your-resource-eastus2.openai.azure.com/"
   AZURE_AI_EASTUS2_API_KEY: "your-key"
   AZURE_AI_MODEL_ROUTING: '{"gpt-4o":"eastus","gpt-5":"eastus2"}'
 ```

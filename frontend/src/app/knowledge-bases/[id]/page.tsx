@@ -339,10 +339,10 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 						placeholder="Define acronyms, terminology, or specific instructions for how the AI should interact with this knowledge base.
 
 Example:
-- 'SM' refers to Store Manager
-- 'CSR' refers to Customer Service Representative
-- Always cite policy numbers when referencing company policies
-- Dates should be formatted as MM/DD/YYYY"
+- 'API' refers to Application Programming Interface
+- 'SLA' refers to Service Level Agreement
+- Always include document section numbers when citing sources
+- Format dates as YYYY-MM-DD"
 						rows={6}
 						className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
 					/>
@@ -626,7 +626,7 @@ function DocumentTable({
 								<StatusBadge status={doc.status} />
 							</td>
 							<td className="px-4 py-3 text-sm text-neutral-400">
-								{doc.chunk_count > 0 ? doc.chunk_count : "—"}
+								{doc.chunk_count > 0 ? doc.chunk_count : "-"}
 							</td>
 							<td className="px-4 py-3 text-sm text-neutral-500">
 								{formatDate(doc.created_at)}
