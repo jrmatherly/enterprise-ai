@@ -96,4 +96,4 @@ The Next.js config includes a rewrite rule that proxies `/api/v1/*` requests to 
 
 ## Architecture
 
-See [docs/FRONTEND-ARCHITECTURE.md](../docs/FRONTEND-ARCHITECTURE.md) for detailed architecture documentation.
+See [Frontend Architecture](../docs/architecture/FRONTEND-ARCHITECTURE.md) for detailed architecture documentation.

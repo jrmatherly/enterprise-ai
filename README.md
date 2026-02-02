@@ -49,7 +49,7 @@ Git hooks enforce:
 - **Pre-commit**: Linting, formatting, security checks
 - **Commit-msg**: [Conventional Commits](https://www.conventionalcommits.org/) format
 
-See [Contributing Guide](docs/CONTRIBUTING.md) for full workflow details.
+See [Contributing Guide](docs/development/CONTRIBUTING.md) for full workflow details.
 
 Services:
 - Frontend: http://localhost:3001
@@ -59,12 +59,13 @@ Services:
 
 ## Documentation
 
-- [Environment Variables](docs/ENVIRONMENT-VARIABLES.md) — Complete env var reference
-- [Contributing Guide](docs/CONTRIBUTING.md) — Git workflow, commit conventions
-- [Development Setup](dev/SETUP.md)
-- [Frontend Architecture](docs/FRONTEND-ARCHITECTURE.md)
-- [Implementation Plan](IMPLEMENTATION-PLAN.md)
-- [Mise Enhancements](docs/MISE-ENHANCEMENT-OPPORTUNITIES.md)
+- [Documentation Index](docs/README.md) — Complete docs directory
+- [Environment Variables](docs/setup/ENVIRONMENT-VARIABLES.md) — Complete env var reference
+- [Contributing Guide](docs/development/CONTRIBUTING.md) — Git workflow, commit conventions
+- [Development Setup](docs/setup/SETUP.md)
+- [Frontend Architecture](docs/architecture/FRONTEND-ARCHITECTURE.md)
+- [Implementation Plan](docs/IMPLEMENTATION-PLAN.md)
+- [Mise Enhancements](docs/development/MISE-ENHANCEMENT-OPPORTUNITIES.md)
 
 ## License
 

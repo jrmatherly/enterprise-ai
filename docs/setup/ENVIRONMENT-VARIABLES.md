@@ -276,5 +276,5 @@ Verify:
 ## Reference
 
 - [Azure AI Foundry Setup](./AZURE-AI-FOUNDRY-SETUP.md)
-- [Development Setup](../dev/SETUP.md)
+- [Development Setup](./SETUP.md)
 - [Docker Compose Config](../dev/docker-compose.yml)
