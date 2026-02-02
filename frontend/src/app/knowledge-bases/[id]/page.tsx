@@ -270,7 +270,8 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 			await updateKB.mutateAsync({
 				kbId: kb.id,
 				data: {
-					system_prompt: instructions || null,
+					// Send empty string to clear (backend converts "" to null)
+					system_prompt: instructions,
 					grounded_only: groundedOnly,
 				},
 			});
