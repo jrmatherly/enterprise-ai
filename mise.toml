@@ -17,6 +17,13 @@ python = "3.12"
 uv = "latest"
 
 # ============================================
+# Hooks
+# ============================================
+# Note: hk hooks should be installed manually with 'mise run git:hooks:install'
+[hooks]
+enter = "mise install -q"
+
+# ============================================
 # Environment Configuration
 # ============================================
 [env]
@@ -199,19 +206,19 @@ echo "✅ All checks passed!"
 # Git Hooks (hk)
 # ============================================
 
-[tasks.hooks-install]
-description = "Install git hooks (pre-commit, commit-msg, pre-push)"
+[tasks."git:hooks:install"]
+description = "Install git hooks (run once after clone)"
 run = "hk install --mise"
 
-[tasks.hooks-check]
+[tasks."git:hooks:check"]
 description = "Run all hook checks manually (CI-friendly)"
 run = "hk run check"
 
-[tasks.hooks-fix]
+[tasks."git:hooks:fix"]
 description = "Run all hook fixes (auto-fix issues)"
 run = "hk run fix"
 
-[tasks.pre-commit]
+[tasks."git:hooks:pre-commit"]
 description = "Run pre-commit hook manually"
 run = "hk run pre-commit"
 
@@ -353,6 +360,6 @@ run = "echo '✅ Frontend CI passed!'"
 description = "Run full CI pipeline locally"
 run = [
     { tasks = ["ci-backend", "ci-frontend"] },  # Run in parallel
-    "hk run check",
+    "mise run git:hooks:check",
     "echo '✅ Full CI passed!'",
 ]

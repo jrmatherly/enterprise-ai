@@ -25,6 +25,9 @@ Enterprise-grade AI adoption platform with RBAC, RAG, and multi-tenant support.
 # First-time setup
 mise run setup
 
+# Install git hooks (once after clone)
+mise run git:hooks:install
+
 # Start development (all services in Docker with hot reload)
 mise run dev
 ```

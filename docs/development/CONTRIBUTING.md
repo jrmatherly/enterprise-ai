@@ -2,6 +2,16 @@
 
 ## Git Workflow
 
+### First-Time Setup
+
+After cloning the repo, install git hooks:
+
+```bash
+mise run git:hooks:install
+```
+
+This sets up pre-commit and commit-msg hooks for linting, formatting, and security checks.
+
 ### Before You Commit
 
 Always check for issues before committing:
@@ -11,7 +21,7 @@ Always check for issues before committing:
 hk check
 
 # Or use mise task
-mise run hooks-check
+mise run git:hooks:check
 ```
 
 ### Fix Issues
@@ -23,7 +33,7 @@ Auto-fix what can be fixed:
 hk fix
 
 # Or use mise task
-mise run hooks-fix
+mise run git:hooks:fix
 ```
 
 ### Commit
