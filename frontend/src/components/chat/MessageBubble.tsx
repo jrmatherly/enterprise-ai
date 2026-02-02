@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { code } from '@streamdown/code';
+import { useState } from 'react';
 import { Streamdown } from 'streamdown';
 import { getInitials, useUser } from '@/lib/contexts/UserContext';
 import type { Message, Source } from '@/lib/types';
@@ -139,9 +139,9 @@ function FollowUpQuestions({
     <div className="mt-3 border-t border-neutral-700/50 pt-3">
       <div className="mb-2 text-xs font-medium text-neutral-400">Follow-up questions</div>
       <div className="flex flex-col gap-1.5">
-        {questions.map((question, index) => (
+        {questions.map((question) => (
           <button
-            key={`followup-${index}`}
+            key={question}
             type="button"
             onClick={() => onQuestionClick?.(question)}
             className="text-left text-sm text-blue-400 hover:text-blue-300 transition-colors py-1 px-2 -mx-2 rounded hover:bg-neutral-700/50 flex items-center gap-2 group"
