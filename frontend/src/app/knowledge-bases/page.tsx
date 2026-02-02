@@ -208,16 +208,37 @@ function KnowledgeBaseCard({
         </svg>
       </button>
 
-      {/* Scope Badge */}
+      {/* Scope Badge & Grounded Badge */}
       <div className="mb-4 flex items-center justify-between">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1",
-            scopeColors[kb.scope],
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1",
+              scopeColors[kb.scope],
+            )}
+          >
+            {kb.scope}
+          </span>
+          {kb.grounded_only && (
+            <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
+              <svg
+                className="size-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                />
+              </svg>
+              Grounded
+            </span>
           )}
-        >
-          {kb.scope}
-        </span>
+        </div>
         <span className="text-xs text-neutral-500 mr-6">
           {kb.document_count}{" "}
           {kb.document_count === 1 ? "document" : "documents"}
