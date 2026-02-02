@@ -354,6 +354,14 @@ Store conversation history in database:
 - [x] CI job fails if `.env` and `.env.example` have different variables
 - [x] Backend: 64 variables | Frontend: 8 variables
 
+### Docker Structure ✅
+- [x] Development Dockerfiles in `dev/`:
+  - `Dockerfile.backend` — Hot reload, dev deps, volume mounts
+  - `Dockerfile.frontend` — Hot reload, volume mounts
+- [x] Production Dockerfiles in `deploy/docker/`:
+  - `Dockerfile.backend` — Multi-stage, non-root user, optimized
+  - `Dockerfile.frontend` — Multi-stage, standalone output, non-root user
+
 ---
 
 ## Development Commands
