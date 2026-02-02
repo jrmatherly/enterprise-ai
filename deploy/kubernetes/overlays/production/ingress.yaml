@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eai-ingress
+  namespace: eai-prod
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ai.example.com
+      secretName: eai-tls
+  rules:
+    - host: ai.example.com
+      http:
+        paths:
+          # Backend API at /api
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: eai-backend
+                port:
+                  number: 8000
+          # Frontend at /
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eai-frontend
+                port:
+                  number: 3001

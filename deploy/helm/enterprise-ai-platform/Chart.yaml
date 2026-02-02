@@ -1,0 +1,43 @@
+# Enterprise AI Platform Helm Chart
+#
+# This chart deploys the Enterprise AI Platform core services (backend + frontend).
+# External dependencies (PostgreSQL, Redis, Qdrant, etc.) should be deployed
+# separately using their respective Helm charts or managed services.
+#
+# Usage:
+#   helm install eai ./deploy/helm/enterprise-ai-platform -n eai --create-namespace
+#
+# With custom values:
+#   helm install eai ./deploy/helm/enterprise-ai-platform -n eai -f values-prod.yaml
+
+apiVersion: v2
+name: enterprise-ai-platform
+description: Enterprise AI Platform - A self-hosted AI assistant platform with RAG capabilities
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - ai
+  - llm
+  - rag
+  - enterprise
+  - azure
+  - openai
+
+home: https://github.com/jrmatherly/enterprise-ai
+
+sources:
+  - https://github.com/jrmatherly/enterprise-ai
+
+maintainers:
+  - name: Jason Matherly
+    email: jason@example.com
+
+# Dependencies are external - we provide connection configuration
+# Deploy these separately for production:
+# - PostgreSQL: bitnami/postgresql or Azure Database for PostgreSQL
+# - Redis: bitnami/redis or Azure Cache for Redis
+# - Qdrant: qdrant/qdrant or Qdrant Cloud
+# - MinIO: minio/minio or Azure Blob Storage
+# - Langfuse: langfuse/langfuse or Langfuse Cloud

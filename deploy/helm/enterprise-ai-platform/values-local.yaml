@@ -1,0 +1,167 @@
+# Local/Development values for Enterprise AI Platform
+#
+# For local Kubernetes (minikube, kind, Docker Desktop, Rancher Desktop)
+#
+# Usage:
+#   helm install eai ./deploy/helm/enterprise-ai-platform \
+#     -n eai-dev --create-namespace \
+#     -f ./deploy/helm/enterprise-ai-platform/values-local.yaml
+
+global:
+  environment: development
+  imagePullSecrets: []
+  storageClass: ""  # Use default
+
+# =============================================================================
+# Backend
+# =============================================================================
+backend:
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/jrmatherly/enterprise-ai-backend
+    tag: latest
+    pullPolicy: Always  # Always pull latest in dev
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: false
+
+  podDisruptionBudget:
+    enabled: false
+
+# =============================================================================
+# Frontend
+# =============================================================================
+frontend:
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/jrmatherly/enterprise-ai-frontend
+    tag: latest
+    pullPolicy: Always
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  autoscaling:
+    enabled: false
+
+  podDisruptionBudget:
+    enabled: false
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  enabled: true
+  className: nginx
+
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+
+  tls:
+    enabled: false  # No TLS for local dev
+
+  pathBased:
+    enabled: true
+    host: localhost
+
+# =============================================================================
+# External Services (pointing to same namespace)
+# =============================================================================
+# Deploy dependencies in same namespace for local dev:
+#   helm install postgres bitnami/postgresql -n eai-dev
+#   helm install redis bitnami/redis -n eai-dev
+#   etc.
+
+externalServices:
+  postgresql:
+    host: postgres-postgresql.eai-dev.svc.cluster.local
+    port: 5432
+    database: eai
+    username: postgres
+    existingSecret: postgres-postgresql
+    secretKey: postgres-password
+
+  redis:
+    host: redis-master.eai-dev.svc.cluster.local
+    port: 6379
+    existingSecret: redis
+    secretKey: redis-password
+
+  qdrant:
+    host: qdrant.eai-dev.svc.cluster.local
+    port: 6333
+    grpcPort: 6334
+    collection: documents
+
+  langfuse:
+    host: langfuse.eai-dev.svc.cluster.local
+    port: 3000
+    existingSecret: langfuse-credentials
+    publicKeySecretKey: publicKey
+    secretKeySecretKey: secretKey
+
+# =============================================================================
+# Azure Configuration
+# =============================================================================
+azure:
+  aiFoundry:
+    existingSecret: azure-ai-credentials
+    defaultModel: gpt-4o-mini
+    defaultRegion: eastus
+    apiVersion: "2025-04-01-preview"
+
+  entraId:
+    existingSecret: azure-entraid-credentials
+    tenantId: ""
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+config:
+  appName: "Enterprise AI Platform (Dev)"
+  debug: true
+  logLevel: DEBUG
+
+  rateLimit:
+    tpm: 100000
+    rpm: 60
+
+  session:
+    maxPerUser: 50
+    autoCleanup: true
+
+  semanticCache:
+    enabled: true
+    threshold: 0.95
+    ttl: 3600
+
+# =============================================================================
+# Secrets
+# =============================================================================
+secrets:
+  create: false
+  betterAuth:
+    existingSecret: better-auth-credentials
+    secretKey: secret
+    url: http://localhost
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+networkPolicy:
+  enabled: false  # Disable for local dev

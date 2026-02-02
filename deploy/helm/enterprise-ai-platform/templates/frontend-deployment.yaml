@@ -1,0 +1,133 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enterprise-ai-platform.frontend.name" . }}
+  labels:
+    {{- include "enterprise-ai-platform.frontend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.frontend.autoscaling.enabled }}
+  replicas: {{ .Values.frontend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "enterprise-ai-platform.frontend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.frontend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "enterprise-ai-platform.frontend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "enterprise-ai-platform.frontend.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.frontend.podSecurityContext | nindent 8 }}
+      containers:
+        - name: frontend
+          securityContext:
+            {{- toYaml .Values.frontend.securityContext | nindent 12 }}
+          image: {{ include "enterprise-ai-platform.frontend.image" . }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          envFrom:
+            {{- with .Values.frontend.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+            # Backend URL for API proxy
+            - name: BACKEND_URL
+              value: "http://{{ include "enterprise-ai-platform.backend.name" . }}:{{ .Values.backend.service.port }}"
+
+            # Disable telemetry
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+
+            # Public API URL (empty - uses relative paths)
+            - name: NEXT_PUBLIC_API_URL
+              value: ""
+
+            # Database password from secret
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalServices.postgresql.existingSecret }}
+                  key: {{ .Values.externalServices.postgresql.secretKey }}
+            - name: DATABASE_URL
+              value: {{ include "enterprise-ai-platform.postgresql.syncUrl" . | quote }}
+
+            # Better Auth configuration
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.betterAuth.existingSecret }}
+                  key: {{ .Values.secrets.betterAuth.secretKey }}
+            - name: BETTER_AUTH_URL
+              value: {{ .Values.secrets.betterAuth.url | quote }}
+
+            # Azure EntraID for Microsoft SSO
+            {{- if .Values.azure.entraId.tenantId }}
+            - name: AZURE_TENANT_ID
+              value: {{ .Values.azure.entraId.tenantId | quote }}
+            {{- else }}
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: tenantId
+                  optional: true
+            {{- end }}
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: clientId
+                  optional: true
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: clientSecret
+                  optional: true
+
+            {{- with .Values.frontend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.frontend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.frontend.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
+      {{- with .Values.frontend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

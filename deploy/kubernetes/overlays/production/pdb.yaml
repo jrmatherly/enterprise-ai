@@ -1,0 +1,26 @@
+---
+# Backend PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eai-backend
+  namespace: eai-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-ai-platform
+      app.kubernetes.io/component: backend
+---
+# Frontend PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eai-frontend
+  namespace: eai-prod
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-ai-platform
+      app.kubernetes.io/component: frontend

@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "enterprise-ai-platform.fullname" . }}-config
+  labels:
+    {{- include "enterprise-ai-platform.labels" . | nindent 4 }}
+data:
+  # Application settings
+  APP_NAME: {{ .Values.config.appName | quote }}
+  ENVIRONMENT: {{ .Values.global.environment | quote }}
+  DEBUG: {{ .Values.config.debug | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+
+  # Redis connection (password in secret)
+  REDIS_HOST: {{ .Values.externalServices.redis.host | quote }}
+  REDIS_PORT: {{ .Values.externalServices.redis.port | quote }}
+
+  # Qdrant connection
+  QDRANT_URL: {{ include "enterprise-ai-platform.qdrant.url" . | quote }}
+  QDRANT_COLLECTION: {{ .Values.externalServices.qdrant.collection | quote }}
+
+  # Langfuse connection
+  LANGFUSE_HOST: {{ include "enterprise-ai-platform.langfuse.url" . | quote }}
+
+  # Azure AI settings
+  AZURE_AI_DEFAULT_MODEL: {{ .Values.azure.aiFoundry.defaultModel | quote }}
+  AZURE_AI_DEFAULT_REGION: {{ .Values.azure.aiFoundry.defaultRegion | quote }}
+  AZURE_OPENAI_API_VERSION: {{ .Values.azure.aiFoundry.apiVersion | quote }}
+
+  # Rate limiting
+  RATE_LIMIT_TPM: {{ .Values.config.rateLimit.tpm | quote }}
+  RATE_LIMIT_RPM: {{ .Values.config.rateLimit.rpm | quote }}
+
+  # Session management
+  MAX_SESSIONS_PER_USER: {{ .Values.config.session.maxPerUser | quote }}
+  SESSION_AUTO_CLEANUP: {{ .Values.config.session.autoCleanup | quote }}
+
+  # Semantic caching
+  SEMANTIC_CACHE_ENABLED: {{ .Values.config.semanticCache.enabled | quote }}
+  SEMANTIC_CACHE_THRESHOLD: {{ .Values.config.semanticCache.threshold | quote }}
+  SEMANTIC_CACHE_TTL: {{ .Values.config.semanticCache.ttl | quote }}
+
+  # Embeddings
+  EMBEDDING_MODEL: {{ .Values.config.embedding.model | quote }}
+  EMBEDDING_DIMENSIONS: {{ .Values.config.embedding.dimensions | quote }}
+
+  # Better Auth URL (for backend JWKS fetch)
+  BETTER_AUTH_URL: "http://{{ include "enterprise-ai-platform.frontend.name" . }}:{{ .Values.frontend.service.port }}"

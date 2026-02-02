@@ -1,0 +1,86 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "enterprise-ai-platform.fullname" . }}
+  labels:
+    {{- include "enterprise-ai-platform.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    {{- if .Values.ingress.pathBased.enabled }}
+    - hosts:
+        - {{ .Values.ingress.pathBased.host }}
+      {{- if .Values.ingress.tls.secretName }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+      {{- else }}
+      secretName: {{ include "enterprise-ai-platform.fullname" . }}-tls
+      {{- end }}
+    {{- else }}
+    - hosts:
+        - {{ .Values.ingress.hosts.frontend }}
+      {{- if .Values.ingress.tls.secretName }}
+      secretName: {{ .Values.ingress.tls.secretName }}-frontend
+      {{- else }}
+      secretName: {{ include "enterprise-ai-platform.fullname" . }}-frontend-tls
+      {{- end }}
+    - hosts:
+        - {{ .Values.ingress.hosts.backend }}
+      {{- if .Values.ingress.tls.secretName }}
+      secretName: {{ .Values.ingress.tls.secretName }}-backend
+      {{- else }}
+      secretName: {{ include "enterprise-ai-platform.fullname" . }}-backend-tls
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if .Values.ingress.pathBased.enabled }}
+    # Path-based routing: frontend at /, backend at /api
+    - host: {{ .Values.ingress.pathBased.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "enterprise-ai-platform.backend.name" . }}
+                port:
+                  number: {{ .Values.backend.service.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "enterprise-ai-platform.frontend.name" . }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+    {{- else }}
+    # Host-based routing: separate hostnames for frontend and backend
+    - host: {{ .Values.ingress.hosts.frontend }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "enterprise-ai-platform.frontend.name" . }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+    - host: {{ .Values.ingress.hosts.backend }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "enterprise-ai-platform.backend.name" . }}
+                port:
+                  number: {{ .Values.backend.service.port }}
+    {{- end }}
+{{- end }}

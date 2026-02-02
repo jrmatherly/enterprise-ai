@@ -1,0 +1,155 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enterprise-ai-platform.backend.name" . }}
+  labels:
+    {{- include "enterprise-ai-platform.backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
+  replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "enterprise-ai-platform.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.backend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "enterprise-ai-platform.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "enterprise-ai-platform.backend.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+          image: {{ include "enterprise-ai-platform.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "enterprise-ai-platform.fullname" . }}-config
+            {{- with .Values.backend.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+            # Database password from secret
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalServices.postgresql.existingSecret }}
+                  key: {{ .Values.externalServices.postgresql.secretKey }}
+            - name: DATABASE_URL
+              value: {{ include "enterprise-ai-platform.postgresql.url" . | quote }}
+
+            # Redis password from secret
+            - name: REDIS_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalServices.redis.existingSecret }}
+                  key: {{ .Values.externalServices.redis.secretKey }}
+
+            # Langfuse credentials from secret
+            - name: LANGFUSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalServices.langfuse.existingSecret }}
+                  key: {{ .Values.externalServices.langfuse.publicKeySecretKey }}
+            - name: LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalServices.langfuse.existingSecret }}
+                  key: {{ .Values.externalServices.langfuse.secretKeySecretKey }}
+
+            # Azure AI credentials from secret
+            - name: AZURE_AI_EASTUS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.aiFoundry.existingSecret }}
+                  key: eastusEndpoint
+                  optional: true
+            - name: AZURE_AI_EASTUS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.aiFoundry.existingSecret }}
+                  key: eastusApiKey
+                  optional: true
+            - name: AZURE_AI_EASTUS2_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.aiFoundry.existingSecret }}
+                  key: eastus2Endpoint
+                  optional: true
+            - name: AZURE_AI_EASTUS2_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.aiFoundry.existingSecret }}
+                  key: eastus2ApiKey
+                  optional: true
+
+            # Azure EntraID credentials from secret
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: clientSecret
+                  optional: true
+            {{- if .Values.azure.entraId.tenantId }}
+            - name: AZURE_TENANT_ID
+              value: {{ .Values.azure.entraId.tenantId | quote }}
+            {{- else }}
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: tenantId
+                  optional: true
+            {{- end }}
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.azure.entraId.existingSecret }}
+                  key: clientId
+                  optional: true
+
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

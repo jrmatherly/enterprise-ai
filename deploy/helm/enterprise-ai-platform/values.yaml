@@ -1,0 +1,419 @@
+# Default values for enterprise-ai-platform
+# This is a YAML-formatted file.
+#
+# Declare variables to be passed into your templates.
+# Override these values for production deployments.
+
+# -- Global settings
+global:
+  # -- Environment name (development, staging, production)
+  environment: production
+  # -- Image pull secrets for private registries
+  imagePullSecrets: []
+  # -- Storage class for PVCs (use "default" or cloud-specific: gp3, premium-rwo)
+  storageClass: ""
+
+# =============================================================================
+# Backend (FastAPI)
+# =============================================================================
+backend:
+  # -- Enable backend deployment
+  enabled: true
+
+  # -- Number of replicas
+  replicaCount: 2
+
+  image:
+    # -- Backend image repository
+    repository: ghcr.io/jrmatherly/enterprise-ai-backend
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+    # -- Image tag (defaults to Chart.appVersion)
+    tag: ""
+
+  # -- Service account configuration
+  serviceAccount:
+    # -- Create a service account
+    create: true
+    # -- Annotations for the service account
+    annotations: {}
+    # -- Service account name (generated if not set)
+    name: ""
+
+  # -- Pod annotations
+  podAnnotations: {}
+
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 1000
+    runAsNonRoot: true
+
+  # -- Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+
+  # -- Resource limits and requests
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  # -- Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # -- Node selector
+  nodeSelector: {}
+
+  # -- Tolerations
+  tolerations: []
+
+  # -- Affinity rules
+  affinity: {}
+
+  # -- Pod Disruption Budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  # -- Liveness probe
+  livenessProbe:
+    httpGet:
+      path: /health/live
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # -- Readiness probe
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # -- Extra environment variables (for non-sensitive config)
+  extraEnv: []
+  # - name: LOG_LEVEL
+  #   value: INFO
+
+  # -- Environment variables from ConfigMap/Secret refs
+  envFrom: []
+  # - configMapRef:
+  #     name: backend-config
+  # - secretRef:
+  #     name: backend-secrets
+
+# =============================================================================
+# Frontend (Next.js)
+# =============================================================================
+frontend:
+  # -- Enable frontend deployment
+  enabled: true
+
+  # -- Number of replicas
+  replicaCount: 2
+
+  image:
+    # -- Frontend image repository
+    repository: ghcr.io/jrmatherly/enterprise-ai-frontend
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+    # -- Image tag (defaults to Chart.appVersion)
+    tag: ""
+
+  # -- Service account configuration
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+
+  # -- Pod annotations
+  podAnnotations: {}
+
+  # -- Pod security context
+  podSecurityContext:
+    fsGroup: 1000
+    runAsNonRoot: true
+
+  # -- Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # Next.js needs to write to .next/
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Service configuration
+  service:
+    type: ClusterIP
+    port: 3001
+
+  # -- Resource limits and requests
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  # -- Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  # -- Node selector
+  nodeSelector: {}
+
+  # -- Tolerations
+  tolerations: []
+
+  # -- Affinity rules
+  affinity: {}
+
+  # -- Pod Disruption Budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  # -- Liveness probe
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # -- Readiness probe
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # -- Extra environment variables
+  extraEnv: []
+
+  # -- Environment variables from ConfigMap/Secret refs
+  envFrom: []
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  # -- Enable ingress
+  enabled: true
+
+  # -- Ingress class name (nginx, alb, traefik, etc.)
+  className: nginx
+
+  # -- Ingress annotations
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # For AWS ALB:
+    # kubernetes.io/ingress.class: alb
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+
+  # -- TLS configuration
+  tls:
+    enabled: true
+    # -- Secret name containing TLS cert (leave empty for cert-manager)
+    secretName: ""
+
+  # -- Hostnames
+  hosts:
+    # -- Frontend hostname
+    frontend: ai.example.com
+    # -- Backend API hostname (can be same with /api path)
+    backend: api.ai.example.com
+
+  # -- Use path-based routing (frontend and backend on same host)
+  pathBased:
+    enabled: false
+    host: ai.example.com
+
+# =============================================================================
+# External Services Configuration
+# =============================================================================
+# These are connection settings for external dependencies.
+# Deploy PostgreSQL, Redis, etc. separately using their Helm charts.
+
+externalServices:
+  # -- PostgreSQL connection
+  postgresql:
+    # -- PostgreSQL host
+    host: postgresql.database.svc.cluster.local
+    # -- PostgreSQL port
+    port: 5432
+    # -- Database name for the app
+    database: eai
+    # -- Username (use existingSecret for credentials)
+    username: eai
+    # -- Existing secret with 'password' key
+    existingSecret: postgresql-credentials
+    # -- Key in secret containing password
+    secretKey: password
+
+  # -- Redis connection
+  redis:
+    # -- Redis host
+    host: redis-master.cache.svc.cluster.local
+    # -- Redis port
+    port: 6379
+    # -- Existing secret with 'password' key
+    existingSecret: redis-credentials
+    # -- Key in secret containing password
+    secretKey: password
+
+  # -- Qdrant connection
+  qdrant:
+    # -- Qdrant host
+    host: qdrant.vector.svc.cluster.local
+    # -- Qdrant HTTP port
+    port: 6333
+    # -- gRPC port
+    grpcPort: 6334
+    # -- Collection name
+    collection: documents
+
+  # -- Langfuse connection
+  langfuse:
+    # -- Langfuse host
+    host: langfuse.observability.svc.cluster.local
+    # -- Langfuse port
+    port: 3000
+    # -- Existing secret with 'publicKey' and 'secretKey'
+    existingSecret: langfuse-credentials
+    publicKeySecretKey: publicKey
+    secretKeySecretKey: secretKey
+
+# =============================================================================
+# Azure Configuration
+# =============================================================================
+azure:
+  # -- Azure AI Foundry configuration
+  aiFoundry:
+    # -- Existing secret containing Azure AI credentials
+    existingSecret: azure-ai-credentials
+    # -- Default model
+    defaultModel: gpt-4o-mini
+    # -- Default region
+    defaultRegion: eastus
+    # -- API version
+    apiVersion: "2025-04-01-preview"
+
+  # -- EntraID (Azure AD) configuration
+  entraId:
+    # -- Existing secret containing EntraID credentials
+    existingSecret: azure-entraid-credentials
+    # -- Tenant ID (can also be in secret)
+    tenantId: ""
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+config:
+  # -- Application name
+  appName: "Enterprise AI Platform"
+  # -- Debug mode (disable in production)
+  debug: false
+  # -- Log level
+  logLevel: INFO
+
+  # -- Rate limiting
+  rateLimit:
+    # -- Tokens per minute
+    tpm: 100000
+    # -- Requests per minute
+    rpm: 60
+
+  # -- Session management
+  session:
+    # -- Max sessions per user
+    maxPerUser: 50
+    # -- Auto cleanup old sessions
+    autoCleanup: true
+
+  # -- Semantic caching
+  semanticCache:
+    # -- Enable semantic caching
+    enabled: true
+    # -- Similarity threshold
+    threshold: 0.95
+    # -- TTL in seconds
+    ttl: 3600
+
+  # -- Embeddings
+  embedding:
+    # -- Embedding model name
+    model: text-embedding-3-small
+    # -- Embedding dimensions
+    dimensions: 1536
+
+# =============================================================================
+# Secrets Configuration
+# =============================================================================
+# IMPORTANT: For production, use external secret management:
+# - HashiCorp Vault with External Secrets Operator
+# - AWS Secrets Manager
+# - Azure Key Vault
+# - Sealed Secrets
+#
+# The secrets templates expect these secrets to exist in the cluster.
+
+secrets:
+  # -- Create secrets from values (NOT recommended for production)
+  create: false
+
+  # -- better-auth secret (frontend authentication)
+  betterAuth:
+    # -- Existing secret name
+    existingSecret: better-auth-credentials
+    # -- Key containing the auth secret
+    secretKey: secret
+    # -- Public URL for better-auth
+    url: https://ai.example.com
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+networkPolicy:
+  # -- Enable network policies
+  enabled: true
+  # -- Allow ingress from ingress controller namespace
+  ingressNamespace: ingress-nginx

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eai
+  labels:
+    app.kubernetes.io/name: enterprise-ai-platform
+    app.kubernetes.io/part-of: enterprise-ai-platform

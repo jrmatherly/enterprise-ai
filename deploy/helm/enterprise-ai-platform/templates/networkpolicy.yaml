@@ -1,0 +1,125 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+# Backend network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "enterprise-ai-platform.backend.name" . }}
+  labels:
+    {{- include "enterprise-ai-platform.backend.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "enterprise-ai-platform.backend.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from frontend
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "enterprise-ai-platform.frontend.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow to PostgreSQL, Redis, Qdrant, Langfuse (external services)
+    # In production, restrict this to specific namespaces/IPs
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32  # Block metadata service
+      ports:
+        - protocol: TCP
+          port: 5432   # PostgreSQL
+        - protocol: TCP
+          port: 6379   # Redis
+        - protocol: TCP
+          port: 6333   # Qdrant HTTP
+        - protocol: TCP
+          port: 6334   # Qdrant gRPC
+        - protocol: TCP
+          port: 3000   # Langfuse
+        - protocol: TCP
+          port: 443    # Azure AI (HTTPS)
+---
+# Frontend network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "enterprise-ai-platform.frontend.name" . }}
+  labels:
+    {{- include "enterprise-ai-platform.frontend.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "enterprise-ai-platform.frontend.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+      ports:
+        - protocol: TCP
+          port: 3001
+    # Allow from backend (for JWKS fetch)
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "enterprise-ai-platform.backend.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 3001
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow to backend
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "enterprise-ai-platform.backend.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow to PostgreSQL (for better-auth)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 443    # Azure EntraID (HTTPS)
+{{- end }}

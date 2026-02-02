@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eai-config
+  namespace: eai
+  labels:
+    app.kubernetes.io/name: enterprise-ai-platform
+    app.kubernetes.io/component: config
+data:
+  # Application settings
+  APP_NAME: "Enterprise AI Platform"
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+
+  # Redis connection (password in secret)
+  REDIS_HOST: "redis-master.cache.svc.cluster.local"
+  REDIS_PORT: "6379"
+
+  # Qdrant connection
+  QDRANT_URL: "http://qdrant.vector.svc.cluster.local:6333"
+  QDRANT_COLLECTION: "documents"
+
+  # Langfuse connection
+  LANGFUSE_HOST: "http://langfuse.observability.svc.cluster.local:3000"
+
+  # Azure AI settings
+  AZURE_AI_DEFAULT_MODEL: "gpt-4o-mini"
+  AZURE_AI_DEFAULT_REGION: "eastus"
+  AZURE_OPENAI_API_VERSION: "2025-04-01-preview"
+
+  # Rate limiting
+  RATE_LIMIT_TPM: "100000"
+  RATE_LIMIT_RPM: "60"
+
+  # Session management
+  MAX_SESSIONS_PER_USER: "50"
+  SESSION_AUTO_CLEANUP: "true"
+
+  # Semantic caching
+  SEMANTIC_CACHE_ENABLED: "true"
+  SEMANTIC_CACHE_THRESHOLD: "0.95"
+  SEMANTIC_CACHE_TTL: "3600"
+
+  # Embeddings
+  EMBEDDING_MODEL: "text-embedding-3-small"
+  EMBEDDING_DIMENSIONS: "1536"
+
+  # Better Auth URL (for backend JWKS fetch)
+  BETTER_AUTH_URL: "http://eai-frontend:3001"

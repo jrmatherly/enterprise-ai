@@ -1,0 +1,73 @@
+# Production overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: eai-prod
+
+resources:
+  - ../../base
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+
+commonLabels:
+  environment: production
+
+# Image tags for production
+images:
+  - name: ghcr.io/jrmatherly/enterprise-ai-backend
+    newTag: "1.0.0"
+  - name: ghcr.io/jrmatherly/enterprise-ai-frontend
+    newTag: "1.0.0"
+
+# Patches for production
+patches:
+  # Backend: higher resources, more replicas
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "4000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+    target:
+      kind: Deployment
+      name: eai-backend
+
+  # Frontend: higher resources
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+    target:
+      kind: Deployment
+      name: eai-frontend
+
+# ConfigMap patches for production
+configMapGenerator:
+  - name: eai-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - RATE_LIMIT_TPM=500000
+      - RATE_LIMIT_RPM=300

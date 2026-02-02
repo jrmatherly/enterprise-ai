@@ -1,0 +1,21 @@
+# Kustomize base configuration for Enterprise AI Platform
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: eai
+
+resources:
+  - namespace.yaml
+  - shared/configmap.yaml
+  - shared/networkpolicy.yaml
+  - backend/serviceaccount.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - frontend/serviceaccount.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+
+commonLabels:
+  app.kubernetes.io/name: enterprise-ai-platform
+  app.kubernetes.io/part-of: enterprise-ai-platform
+  app.kubernetes.io/managed-by: kustomize

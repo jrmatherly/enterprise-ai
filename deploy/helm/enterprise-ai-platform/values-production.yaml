@@ -1,0 +1,228 @@
+# Production values for Enterprise AI Platform
+#
+# Usage:
+#   helm install eai ./deploy/helm/enterprise-ai-platform \
+#     -n eai-prod --create-namespace \
+#     -f ./deploy/helm/enterprise-ai-platform/values-production.yaml
+
+global:
+  environment: production
+  imagePullSecrets:
+    - name: ghcr-credentials
+  storageClass: gp3  # AWS EBS gp3 (adjust for your cloud)
+
+# =============================================================================
+# Backend
+# =============================================================================
+backend:
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/jrmatherly/enterprise-ai-backend
+    tag: "1.0.0"  # Pin to specific version in production
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  # Spread pods across availability zones
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: backend
+            topologyKey: topology.kubernetes.io/zone
+
+  # Node pool for API workloads
+  nodeSelector:
+    workload: api
+
+  tolerations:
+    - key: workload
+      operator: Equal
+      value: api
+      effect: NoSchedule
+
+# =============================================================================
+# Frontend
+# =============================================================================
+frontend:
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/jrmatherly/enterprise-ai-frontend
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 60
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: frontend
+            topologyKey: topology.kubernetes.io/zone
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  enabled: true
+  className: nginx
+
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Enable CORS if needed
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    # SSL redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+  tls:
+    enabled: true
+    # Leave empty to use cert-manager auto-generated secret
+    secretName: ""
+
+  # Use path-based routing (single hostname)
+  pathBased:
+    enabled: true
+    host: ai.yourcompany.com
+
+  # Or use separate hostnames (set pathBased.enabled: false)
+  # hosts:
+  #   frontend: ai.yourcompany.com
+  #   backend: api.ai.yourcompany.com
+
+# =============================================================================
+# External Services
+# =============================================================================
+externalServices:
+  postgresql:
+    # Azure Database for PostgreSQL or RDS
+    host: eai-postgres.postgres.database.azure.com
+    port: 5432
+    database: eai
+    username: eai_admin
+    existingSecret: postgresql-credentials
+    secretKey: password
+
+  redis:
+    # Azure Cache for Redis or ElastiCache
+    host: eai-redis.redis.cache.windows.net
+    port: 6380  # Azure Redis uses 6380 for TLS
+    existingSecret: redis-credentials
+    secretKey: password
+
+  qdrant:
+    # Qdrant Cloud or self-hosted
+    host: qdrant.vector.svc.cluster.local
+    port: 6333
+    grpcPort: 6334
+    collection: documents
+
+  langfuse:
+    host: langfuse.observability.svc.cluster.local
+    port: 3000
+    existingSecret: langfuse-credentials
+    publicKeySecretKey: publicKey
+    secretKeySecretKey: secretKey
+
+# =============================================================================
+# Azure Configuration
+# =============================================================================
+azure:
+  aiFoundry:
+    existingSecret: azure-ai-credentials
+    defaultModel: gpt-4o
+    defaultRegion: eastus
+    apiVersion: "2025-04-01-preview"
+
+  entraId:
+    existingSecret: azure-entraid-credentials
+    tenantId: ""  # Set via secret or here
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+config:
+  appName: "Enterprise AI Platform"
+  debug: false
+  logLevel: INFO
+
+  rateLimit:
+    tpm: 500000  # Higher limits for production
+    rpm: 300
+
+  session:
+    maxPerUser: 100
+    autoCleanup: true
+
+  semanticCache:
+    enabled: true
+    threshold: 0.95
+    ttl: 7200  # 2 hours
+
+  embedding:
+    model: text-embedding-3-small
+    dimensions: 1536
+
+# =============================================================================
+# Secrets
+# =============================================================================
+secrets:
+  create: false  # Use external secrets in production
+  betterAuth:
+    existingSecret: better-auth-credentials
+    secretKey: secret
+    url: https://ai.yourcompany.com
+
+# =============================================================================
+# Network Policies
+# =============================================================================
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx

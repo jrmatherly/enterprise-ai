@@ -1,0 +1,13 @@
+{{- if and .Values.frontend.enabled .Values.frontend.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "enterprise-ai-platform.frontend.name" . }}
+  labels:
+    {{- include "enterprise-ai-platform.frontend.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.frontend.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "enterprise-ai-platform.frontend.selectorLabels" . | nindent 6 }}
+{{- end }}

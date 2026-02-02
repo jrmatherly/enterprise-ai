@@ -1,0 +1,52 @@
+# Development overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: eai-dev
+
+resources:
+  - ../../base
+
+nameSuffix: ""
+
+commonLabels:
+  environment: development
+
+# Patch deployments for development
+patches:
+  # Backend: single replica, debug mode
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DEBUG
+          value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: LOG_LEVEL
+          value: "DEBUG"
+    target:
+      kind: Deployment
+      name: eai-backend
+
+  # Frontend: single replica
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: eai-frontend
+
+# ConfigMap patches
+configMapGenerator:
+  - name: eai-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG

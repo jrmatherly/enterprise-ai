@@ -1,0 +1,67 @@
+🚀 Enterprise AI Platform has been deployed!
+
+{{- if .Values.ingress.enabled }}
+
+📡 Access URLs:
+{{- if .Values.ingress.pathBased.enabled }}
+  Frontend: https://{{ .Values.ingress.pathBased.host }}
+  Backend API: https://{{ .Values.ingress.pathBased.host }}/api
+{{- else }}
+  Frontend: https://{{ .Values.ingress.hosts.frontend }}
+  Backend API: https://{{ .Values.ingress.hosts.backend }}
+{{- end }}
+
+{{- else }}
+
+📡 To access the services, run:
+
+  # Frontend
+  kubectl port-forward svc/{{ include "enterprise-ai-platform.frontend.name" . }} 3001:{{ .Values.frontend.service.port }} -n {{ .Release.Namespace }}
+
+  # Backend API
+  kubectl port-forward svc/{{ include "enterprise-ai-platform.backend.name" . }} 8000:{{ .Values.backend.service.port }} -n {{ .Release.Namespace }}
+
+{{- end }}
+
+📋 Quick Commands:
+
+  # Check pod status
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+  # View backend logs
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=backend -f
+
+  # View frontend logs
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=frontend -f
+
+  # Check HPA status
+  kubectl get hpa -n {{ .Release.Namespace }}
+
+🔐 Secrets Required:
+
+  This chart expects the following secrets to exist in the namespace:
+  {{- with .Values.externalServices.postgresql.existingSecret }}
+  - {{ . }} (PostgreSQL credentials)
+  {{- end }}
+  {{- with .Values.externalServices.redis.existingSecret }}
+  - {{ . }} (Redis credentials)
+  {{- end }}
+  {{- with .Values.externalServices.langfuse.existingSecret }}
+  - {{ . }} (Langfuse API keys)
+  {{- end }}
+  {{- with .Values.azure.aiFoundry.existingSecret }}
+  - {{ . }} (Azure AI credentials)
+  {{- end }}
+  {{- with .Values.azure.entraId.existingSecret }}
+  - {{ . }} (Azure EntraID credentials)
+  {{- end }}
+  {{- with .Values.secrets.betterAuth.existingSecret }}
+  - {{ . }} (better-auth secret)
+  {{- end }}
+
+  Create secrets using:
+  kubectl create secret generic <secret-name> --from-literal=<key>=<value> -n {{ .Release.Namespace }}
+
+  Or use an external secrets operator (recommended for production).
+
+📚 Documentation: https://github.com/jrmatherly/enterprise-ai
