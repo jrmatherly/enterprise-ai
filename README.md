@@ -59,6 +59,7 @@ Services:
 
 ## Documentation
 
+- [Environment Variables](docs/ENVIRONMENT-VARIABLES.md) — Complete env var reference
 - [Contributing Guide](docs/CONTRIBUTING.md) — Git workflow, commit conventions
 - [Development Setup](dev/SETUP.md)
 - [Frontend Architecture](docs/FRONTEND-ARCHITECTURE.md)
