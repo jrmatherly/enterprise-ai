@@ -26,17 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install dependencies
         run: uv sync --frozen
-      
+
       - name: Run ruff check
         run: uv run ruff check src/
-      
+
       - name: Run ruff format check
         run: uv run ruff format src/ --check
 
@@ -45,14 +45,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install dependencies
         run: uv sync --frozen --all-extras
-      
+
       - name: Run mypy
         run: uv run mypy src/
 
@@ -73,7 +73,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
+
       redis:
         image: redis:7-alpine
         ports:
@@ -83,22 +83,22 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/test
       REDIS_URL: redis://localhost:6379
       APP_ENV: test
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install dependencies
         run: uv sync --frozen --all-extras
-      
+
       - name: Run tests
         run: uv run pytest --tb=short
 
@@ -113,17 +113,17 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run biome check
         run: npx @biomejs/biome check src/
-      
+
       - name: Run TypeScript check
         run: npx tsc --noEmit
 
@@ -135,18 +135,30 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # ============================================
+  # Environment File Checks
+  # ============================================
+  env-check:
+    name: Env Files Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check env files have same variables
+        run: bash scripts/check-env-sync.sh
 
   # ============================================
   # Security Checks
@@ -156,11 +168,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Run hk security checks
         run: hk run check
         continue-on-error: true  # Don't fail CI on initial setup
@@ -177,6 +189,7 @@ jobs:
       - backend-test
       - frontend-lint
       - frontend-build
+      - env-check
       - security-check
     if: always()
     steps:
@@ -186,7 +199,8 @@ jobs:
              [[ "${{ needs.backend-typecheck.result }}" != "success" ]] || \
              [[ "${{ needs.backend-test.result }}" != "success" ]] || \
              [[ "${{ needs.frontend-lint.result }}" != "success" ]] || \
-             [[ "${{ needs.frontend-build.result }}" != "success" ]]; then
+             [[ "${{ needs.frontend-build.result }}" != "success" ]] || \
+             [[ "${{ needs.env-check.result }}" != "success" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi

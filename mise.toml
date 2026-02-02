@@ -343,6 +343,14 @@ curl -s -X POST http://localhost:8000/api/v1/chat \
 """
 
 # ============================================
+# Environment File Validation
+# ============================================
+
+[tasks."env:check"]
+description = "Verify .env and .env.example have the same variables"
+run = "bash scripts/check-env-sync.sh"
+
+# ============================================
 # CI Tasks (for GitHub Actions)
 # ============================================
 
