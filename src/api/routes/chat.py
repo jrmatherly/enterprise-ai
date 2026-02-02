@@ -255,8 +255,11 @@ async def chat(
     if rag_context_text:
         rag_parts = [
             "Use the following retrieved context to answer the user's question. "
-            "IMPORTANT: When using information from the context, cite your sources "
-            "using the bracket notation [1], [2], etc. that matches the source numbers. "
+            "IMPORTANT CITATION RULES:\n"
+            "1. Cite sources inline using [1], [2], etc. when using information from the context\n"
+            "2. At the END of your response, include a 'Sources:' section listing each cited source\n"
+            "3. Format each source as: [N] Document Name (Section X)\n"
+            "4. Only list sources you actually cited in your response\n"
             "If the context doesn't contain relevant information, say so clearly."
         ]
 
@@ -487,8 +490,11 @@ async def chat_stream(
     if rag_context_text:
         rag_parts = [
             "Use the following retrieved context to answer the user's question. "
-            "IMPORTANT: When using information from the context, cite your sources "
-            "using the bracket notation [1], [2], etc. that matches the source numbers. "
+            "IMPORTANT CITATION RULES:\n"
+            "1. Cite sources inline using [1], [2], etc. when using information from the context\n"
+            "2. At the END of your response, include a 'Sources:' section listing each cited source\n"
+            "3. Format each source as: [N] Document Name (Section X)\n"
+            "4. Only list sources you actually cited in your response\n"
             "If the context doesn't contain relevant information, say so clearly."
         ]
 
