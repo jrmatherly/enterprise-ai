@@ -83,14 +83,33 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
 
+      # Microsoft EntraID (for backend auth/OIDC)
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://localhost:8000/auth/callback}
+
       # App settings
       APP_NAME: "Enterprise AI Platform"
-      DEBUG: "true"
-      LOG_LEVEL: "DEBUG"
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+
+      # Qdrant collection
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-documents}
 
       # Rate limits
       RATE_LIMIT_TPM: ${RATE_LIMIT_TPM:-100000}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
+
+      # Session management
+      MAX_SESSIONS_PER_USER: ${MAX_SESSIONS_PER_USER:-50}
+      SESSION_AUTO_CLEANUP: ${SESSION_AUTO_CLEANUP:-true}
+
+      # Semantic caching
+      SEMANTIC_CACHE_ENABLED: ${SEMANTIC_CACHE_ENABLED:-true}
+      SEMANTIC_CACHE_THRESHOLD: ${SEMANTIC_CACHE_THRESHOLD:-0.95}
+      SEMANTIC_CACHE_TTL: ${SEMANTIC_CACHE_TTL:-3600}
     healthcheck:
       test:
         ["CMD-SHELL", "curl -sf http://localhost:8000/health/live || exit 1"]
