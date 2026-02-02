@@ -49,15 +49,19 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
           ) : (
             <>
               {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  onFollowUpClick={(question) => handleSend(question)}
+                />
               ))}
-              
+
               {isStreaming && streamingContent && (
                 <StreamingMessage content={streamingContent} />
               )}
             </>
           )}
-          
+
           {error && (
             <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
               {error}
@@ -105,7 +109,7 @@ function EmptyState() {
         Ask questions, analyze documents, or get help with tasks.
         Select a knowledge base below to search your documents.
       </p>
-      
+
       {/* Quick Tips */}
       <div className="grid gap-2 text-left max-w-sm w-full">
         <div className="flex items-start gap-3 rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">

@@ -97,6 +97,7 @@ See [../dev/README.md](../dev/README.md) for details.
 The platform requires these external services:
 
 | Service | Purpose | Deployment Options |
+
 |---------|---------|-------------------|
 | PostgreSQL | Primary database, auth sessions | Bitnami Helm, Azure PostgreSQL, AWS RDS |
 | Redis | Caching, rate limiting, queues | Bitnami Helm, Azure Cache, AWS ElastiCache |

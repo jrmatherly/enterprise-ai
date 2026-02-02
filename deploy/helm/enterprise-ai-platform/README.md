@@ -13,6 +13,7 @@ Helm chart for deploying the Enterprise AI Platform to Kubernetes.
 This chart deploys only the core application (backend + frontend). You must deploy these dependencies separately:
 
 | Service | Recommended Helm Chart | Managed Service Alternative |
+
 |---------|----------------------|---------------------------|
 | PostgreSQL | bitnami/postgresql | Azure Database for PostgreSQL, AWS RDS |
 | Redis | bitnami/redis | Azure Cache for Redis, AWS ElastiCache |
@@ -140,6 +141,7 @@ helm uninstall eai -n eai
 ## Values Files
 
 | File | Description |
+
 |------|-------------|
 | `values.yaml` | Default values with documentation |
 | `values-production.yaml` | Production-optimized settings |
@@ -148,6 +150,7 @@ helm uninstall eai -n eai
 ## Templates
 
 | Template | Description |
+
 |----------|-------------|
 | `backend-deployment.yaml` | FastAPI backend deployment |
 | `backend-service.yaml` | Backend ClusterIP service |

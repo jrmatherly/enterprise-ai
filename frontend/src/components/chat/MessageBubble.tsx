@@ -9,6 +9,38 @@ import { cn } from '@/lib/utils/cn';
 
 interface MessageBubbleProps {
   message: Message;
+  onFollowUpClick?: (question: string) => void;
+}
+
+/**
+ * Parse follow-up questions from message content.
+ * Looks for <<<FOLLOWUP>>>...<<<END_FOLLOWUP>>> markers.
+ */
+function parseFollowUpQuestions(content: string): { cleanContent: string; questions: string[] } {
+  const followUpRegex = /<<<FOLLOWUP>>>([\s\S]*?)<<<END_FOLLOWUP>>>/;
+  const match = content.match(followUpRegex);
+
+  if (!match) {
+    return { cleanContent: content, questions: [] };
+  }
+
+  const cleanContent = content.replace(followUpRegex, '').trim();
+  const questionsBlock = match[1].trim();
+  const questions = questionsBlock
+    .split('\n')
+    .map(q => q.trim())
+    .filter(q => q.length > 0 && !q.startsWith('-')); // Filter empty lines and bullet markers
+
+  // Also handle bullet-style questions
+  const bulletQuestions = questionsBlock
+    .split('\n')
+    .map(q => q.replace(/^[-•*]\s*/, '').trim())
+    .filter(q => q.length > 0);
+
+  return {
+    cleanContent,
+    questions: questions.length > 0 ? questions : bulletQuestions
+  };
 }
 
 function SourceBadge({ source }: { source: Source }) {
@@ -94,12 +126,54 @@ function SourcesList({ sources }: { sources: Source[] }) {
   );
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+function FollowUpQuestions({
+  questions,
+  onQuestionClick
+}: {
+  questions: string[];
+  onQuestionClick?: (question: string) => void;
+}) {
+  if (!questions || questions.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t border-neutral-700/50 pt-3">
+      <div className="mb-2 text-xs font-medium text-neutral-400">Follow-up questions</div>
+      <div className="flex flex-col gap-1.5">
+        {questions.map((question, index) => (
+          <button
+            key={`followup-${index}`}
+            type="button"
+            onClick={() => onQuestionClick?.(question)}
+            className="text-left text-sm text-blue-400 hover:text-blue-300 transition-colors py-1 px-2 -mx-2 rounded hover:bg-neutral-700/50 flex items-center gap-2 group"
+          >
+            <svg
+              className="size-3.5 flex-shrink-0 text-neutral-500 group-hover:text-blue-400 transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+            <span>{question}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function MessageBubble({ message, onFollowUpClick }: MessageBubbleProps) {
   const { user } = useUser();
   const isUser = message.role === 'user';
 
   // Get user initials or fallback to 'U'
   const userInitials = user ? getInitials(user.name) : 'U';
+
+  // Parse follow-up questions from AI messages
+  const { cleanContent, questions } = isUser
+    ? { cleanContent: message.content, questions: [] }
+    : parseFollowUpQuestions(message.content);
 
   return (
     <div
@@ -135,10 +209,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {message.content}
           </div>
         ) : (
-          // AI messages: render markdown with streamdown
+          // AI messages: render markdown with streamdown (without follow-up section)
           <div className="prose prose-invert prose-sm max-w-none">
             <Streamdown plugins={{ code }}>
-              {message.content}
+              {cleanContent}
             </Streamdown>
           </div>
         )}
@@ -146,6 +220,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {/* Sources with hover popovers */}
         {!isUser && message.sources && message.sources.length > 0 && (
           <SourcesList sources={message.sources} />
+        )}
+
+        {/* Follow-up questions as clickable buttons */}
+        {!isUser && questions.length > 0 && (
+          <FollowUpQuestions questions={questions} onQuestionClick={onFollowUpClick} />
         )}
 
         {message.timestamp && formatTime(message.timestamp) && (

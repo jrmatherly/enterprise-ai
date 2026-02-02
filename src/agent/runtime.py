@@ -181,15 +181,17 @@ You must ONLY respond using information from the <retrieved_context> section bel
 {context_text}
 </retrieved_context>
 
-When responding, cite sources from <retrieved_context> using the format: [Source: filename, Page X] (include page number if available).
+IMPORTANT: Do NOT include inline source citations like [Source: filename] in your response text.
+Sources will be displayed separately in the UI. Just provide your answer naturally.
 
-After your response, suggest 2-3 relevant follow-up questions the user might want to ask, based on the conversation context and available knowledge. Format them as:
+After your main response, suggest 2-3 relevant follow-up questions on a new line.
+Format EXACTLY like this (the marker is required for parsing):
 
----
-**Related questions you might ask:**
-- [First follow-up question]
-- [Second follow-up question]
-- [Third follow-up question]"""
+<<<FOLLOWUP>>>
+What is the escalation process for unresolved issues?
+How do I document customer complaints?
+What are the key metrics for customer satisfaction?
+<<<END_FOLLOWUP>>>"""
 
         return base_prompt
 
