@@ -1,3 +1,8 @@
+"use client";
+
+import { code } from "@streamdown/code";
+import { Streamdown } from "streamdown";
+
 interface StreamingMessageProps {
   content: string;
 }
@@ -12,8 +17,10 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
 
       {/* Message Content */}
       <div className="max-w-[75%] rounded-2xl bg-neutral-800 px-4 py-2.5">
-        <div className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-100 text-pretty">
-          {content}
+        <div className="prose prose-invert prose-sm max-w-none text-neutral-100">
+          <Streamdown plugins={{ code }} isAnimating={true}>
+            {content}
+          </Streamdown>
           <span className="ml-0.5 inline-block size-2 animate-pulse rounded-full bg-neutral-400" />
         </div>
       </div>

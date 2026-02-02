@@ -1,11 +1,11 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { genericOAuth, microsoftEntraId } from "better-auth/plugins";
+import { genericOAuth } from "better-auth/plugins";
 import { Pool } from "pg";
 
 /**
  * Better Auth configuration for Enterprise AI Platform
- * 
+ *
  * Uses Microsoft EntraID for enterprise SSO authentication.
  * Database tables are managed by better-auth in the same PostgreSQL instance.
  */
@@ -36,7 +36,7 @@ export const auth = betterAuth({
         required: false,
       },
       department: {
-        type: "string", 
+        type: "string",
         required: false,
       },
       jobTitle: {
@@ -49,8 +49,8 @@ export const auth = betterAuth({
   // Microsoft EntraID as primary auth provider
   socialProviders: {
     microsoft: {
-      clientId: process.env.AZURE_CLIENT_ID!,
-      clientSecret: process.env.AZURE_CLIENT_SECRET!,
+      clientId: process.env.AZURE_CLIENT_ID ?? "",
+      clientSecret: process.env.AZURE_CLIENT_SECRET ?? "",
       tenantId: process.env.AZURE_TENANT_ID || "common",
       // Request additional scopes for user profile
       scope: ["openid", "profile", "email", "User.Read"],
@@ -61,7 +61,7 @@ export const auth = betterAuth({
   plugins: [
     // Handle cookies in Next.js server actions
     nextCookies(),
-    
+
     // Generic OAuth for additional enterprise providers if needed
     genericOAuth({
       config: [

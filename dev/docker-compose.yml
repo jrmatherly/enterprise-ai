@@ -51,20 +51,20 @@ services:
     environment:
       # Database (use container hostname)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${APP_DB:-eai}
-      
+
       # Redis (use component settings for container networking)
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_AUTH: ${REDIS_AUTH:-redissecret}
-      
+
       # Qdrant
       QDRANT_URL: http://qdrant:6333
-      
+
       # Langfuse
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
       LANGFUSE_HOST: http://langfuse-web:3000
-      
+
       # Azure AI Foundry - Multi-Region
       AZURE_AI_EASTUS_ENDPOINT: ${AZURE_AI_EASTUS_ENDPOINT:-}
       AZURE_AI_EASTUS_API_KEY: ${AZURE_AI_EASTUS_API_KEY:-}
@@ -75,17 +75,25 @@ services:
       AZURE_AI_DEFAULT_MODEL: ${AZURE_AI_DEFAULT_MODEL:-gpt-4o-mini}
       AZURE_AI_DEFAULT_REGION: ${AZURE_AI_DEFAULT_REGION:-eastus}
       AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2025-04-01-preview}
-      
+
+      # Model routing - map models to their Azure regions
+      AZURE_AI_MODEL_ROUTING: '{"text-embedding-3-large":"eastus2","text-embedding-3-small":"eastus","text-embedding-ada-002":"eastus","gpt-5-mini":"eastus","gpt-5.1":"eastus2"}'
+
+      # Embeddings
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+
       # App settings
       APP_NAME: "Enterprise AI Platform"
       DEBUG: "true"
       LOG_LEVEL: "DEBUG"
-      
+
       # Rate limits
       RATE_LIMIT_TPM: ${RATE_LIMIT_TPM:-100000}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health/live || exit 1"]
+      test:
+        ["CMD-SHELL", "curl -sf http://localhost:8000/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -114,7 +122,7 @@ services:
       - ../frontend/next.config.ts:/app/next.config.ts:ro
       - ../frontend/tailwind.config.ts:/app/tailwind.config.ts:ro
       - ../frontend/postcss.config.mjs:/app/postcss.config.mjs:ro
-      - ../frontend/tsconfig.json:/app/tsconfig.json:ro
+      - ../frontend/tsconfig.json:/app/tsconfig.json
     environment:
       # API URL (internal docker network)
       NEXT_PUBLIC_API_URL: ""
@@ -122,12 +130,12 @@ services:
       BACKEND_URL: http://backend:8000
       # Disable telemetry
       NEXT_TELEMETRY_DISABLED: "1"
-      
+
       # Better Auth configuration
       BETTER_AUTH_SECRET: ${NEXTAUTH_SECRET:-changeme-generate-random-secret}
       BETTER_AUTH_URL: http://localhost:3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${APP_DB:-eai}
-      
+
       # Microsoft EntraID
       AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
@@ -167,7 +175,7 @@ services:
   # ClickHouse - OLAP Database (Langfuse v3)
   # ============================================
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:25.12.4.35-alpine
     container_name: eai-clickhouse
     restart: unless-stopped
     user: "101:101"
@@ -181,6 +189,8 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
+      # IPv4-only config for Alpine (no IPv6 support)
+      - ./clickhouse-config/listen_host.xml:/etc/clickhouse-server/config.d/listen_host.xml:ro
     healthcheck:
       test:
         [
@@ -189,12 +199,12 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:8123/ping",
+          "http://127.0.0.1:8123/ping",
         ]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 5s
+      start_period: 10s
 
   # ============================================
   # Redis - Caching, Queueing & Session State
@@ -225,7 +235,7 @@ services:
   # Qdrant - Vector Database for RAG
   # ============================================
   qdrant:
-    image: qdrant/qdrant:v1.13.2
+    image: qdrant/qdrant:v1.16.2
     container_name: eai-qdrant
     restart: unless-stopped
     ports:
@@ -239,7 +249,11 @@ services:
     healthcheck:
       # Use bash /dev/tcp to check if HTTP port is accepting connections
       # and responds with HTTP (simple healthcheck for minimal image)
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n\" >&3 && timeout 1 cat <&3 | grep -q \"200 OK\"'"]
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n\" >&3 && timeout 1 cat <&3 | grep -q \"200 OK\"'",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -249,7 +263,7 @@ services:
   # MinIO - S3-Compatible Blob Storage
   # ============================================
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: eai-minio
     restart: unless-stopped
     entrypoint: sh
@@ -289,8 +303,7 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
-    environment: &langfuse-env
-      # Database
+    environment: &langfuse-env # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-langfuse}
 
       # ClickHouse (required for v3)
@@ -374,7 +387,11 @@ services:
     environment:
       <<: *langfuse-env
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://$(hostname):3030/api/health | grep -qi ok"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O- http://$(hostname):3030/api/health | grep -qi ok",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5

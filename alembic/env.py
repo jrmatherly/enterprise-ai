@@ -10,10 +10,10 @@ from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
 
 from alembic import context
+from src.core.config import get_settings
 
 # Import models so Alembic can detect them
 from src.db.models import Base
-from src.core.config import get_settings
 
 # this is the Alembic Config object
 config = context.config

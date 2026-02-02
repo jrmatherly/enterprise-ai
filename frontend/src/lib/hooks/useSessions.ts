@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api/client";
 
 export interface Session {
   id: string;
@@ -27,7 +27,7 @@ export interface SessionDetail extends Session {
  */
 export function useSessions(limit: number = 50) {
   return useQuery({
-    queryKey: ['sessions', limit],
+    queryKey: ["sessions", limit],
     queryFn: async () => {
       return apiClient<Session[]>(`/api/v1/sessions?limit=${limit}`);
     },
@@ -41,10 +41,12 @@ export function useSessions(limit: number = 50) {
  */
 export function useSession(sessionId: string | null) {
   return useQuery({
-    queryKey: ['session', sessionId],
+    queryKey: ["session", sessionId],
     queryFn: async () => {
       if (!sessionId) return null;
-      return apiClient<SessionDetail>(`/api/v1/sessions/${sessionId}?include_messages=true`);
+      return apiClient<SessionDetail>(
+        `/api/v1/sessions/${sessionId}?include_messages=true`,
+      );
     },
     enabled: !!sessionId,
     staleTime: 10 * 1000,
@@ -56,16 +58,19 @@ export function useSession(sessionId: string | null) {
  */
 export function useCreateSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (data: { title?: string; knowledge_base_ids?: string[] }) => {
-      return apiClient<Session>('/api/v1/sessions', {
-        method: 'POST',
+    mutationFn: async (data: {
+      title?: string;
+      knowledge_base_ids?: string[];
+    }) => {
+      return apiClient<Session>("/api/v1/sessions", {
+        method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 }
@@ -75,17 +80,25 @@ export function useCreateSession() {
  */
 export function useUpdateSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
+    mutationFn: async ({
+      sessionId,
+      title,
+    }: {
+      sessionId: string;
+      title: string;
+    }) => {
       return apiClient<Session>(`/api/v1/sessions/${sessionId}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify({ title }),
       });
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['session', variables.sessionId] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["session", variables.sessionId],
+      });
     },
   });
 }
@@ -95,15 +108,15 @@ export function useUpdateSession() {
  */
 export function useDeleteSession() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (sessionId: string) => {
       return apiClient<void>(`/api/v1/sessions/${sessionId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 }

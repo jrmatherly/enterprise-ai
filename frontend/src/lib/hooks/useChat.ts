@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { streamChat, apiClient } from '@/lib/api/client';
-import type { Message } from '@/lib/types';
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
+import { apiClient, streamChat } from "@/lib/api/client";
+import type { Message } from "@/lib/types";
 
 interface UseChatOptions {
   sessionId: string | null;
-  onSessionCreated: (id: string) => void;
+  onSessionCreated: (id: string, title?: string) => void;
 }
 
 interface SessionDetail {
@@ -39,23 +39,23 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
     const loadHistory = async () => {
       setIsLoadingHistory(true);
       setError(null);
-      
+
       try {
         const session = await apiClient<SessionDetail>(
-          `/api/v1/sessions/${sessionId}?include_messages=true`
+          `/api/v1/sessions/${sessionId}?include_messages=true`,
         );
-        
+
         const loadedMessages: Message[] = session.messages.map((msg) => ({
           id: msg.id,
-          role: msg.role as 'user' | 'assistant' | 'system',
+          role: msg.role as "user" | "assistant" | "system",
           content: msg.content,
           timestamp: msg.created_at,
         }));
-        
+
         setMessages(loadedMessages);
       } catch (err) {
-        console.error('Failed to load session history:', err);
-        setError('Failed to load conversation history');
+        console.error("Failed to load session history:", err);
+        setError("Failed to load conversation history");
       } finally {
         setIsLoadingHistory(false);
       }
@@ -64,69 +64,76 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
     loadHistory();
   }, [sessionId]);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isStreaming) return;
+  const sendMessage = useCallback(
+    async (content: string, knowledgeBaseIds?: string[]) => {
+      if (!content.trim() || isStreaming) return;
 
-    setError(null);
-    
-    // Add user message optimistically
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsStreaming(true);
-    setStreamingContent('');
+      setError(null);
 
-    try {
-      let fullContent = '';
-      let newSessionId: string | null = null;
-      
-      for await (const chunk of streamChat(content, sessionId ?? undefined)) {
-        if (chunk.error) {
-          setError(chunk.error);
-          setStreamingContent(null);
-          break;
-        }
-        
-        if (chunk.content) {
-          fullContent += chunk.content;
-          setStreamingContent(fullContent);
-        }
+      // Add user message optimistically
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: content.trim(),
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setIsStreaming(true);
+      setStreamingContent("");
 
-        if (chunk.session_id) {
-          newSessionId = chunk.session_id;
-        }
+      try {
+        let fullContent = "";
+        let newSessionId: string | null = null;
 
-        if (chunk.done) {
-          // Add completed assistant message
-          const assistantMessage: Message = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: fullContent,
-            timestamp: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, assistantMessage]);
-          setStreamingContent(null);
-          
-          // Notify parent of new session and invalidate sessions list
-          if (newSessionId && !sessionId) {
-            onSessionCreated(newSessionId);
+        for await (const chunk of streamChat(
+          content,
+          sessionId ?? undefined,
+          knowledgeBaseIds,
+        )) {
+          if (chunk.error) {
+            setError(chunk.error);
+            setStreamingContent(null);
+            break;
           }
-          
-          // Refresh sessions list to show updated session
-          queryClient.invalidateQueries({ queryKey: ['sessions'] });
+
+          if (chunk.content) {
+            fullContent += chunk.content;
+            setStreamingContent(fullContent);
+          }
+
+          if (chunk.session_id) {
+            newSessionId = chunk.session_id;
+          }
+
+          if (chunk.done) {
+            // Add completed assistant message
+            const assistantMessage: Message = {
+              id: `assistant-${Date.now()}`,
+              role: "assistant",
+              content: fullContent,
+              timestamp: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, assistantMessage]);
+            setStreamingContent(null);
+
+            // Notify parent of new session (with title if generated)
+            if (newSessionId && !sessionId) {
+              onSessionCreated(newSessionId, chunk.title);
+            }
+
+            // Refresh sessions list to show updated title
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+          }
         }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to send message");
+        setStreamingContent(null);
+      } finally {
+        setIsStreaming(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-      setStreamingContent(null);
-    } finally {
-      setIsStreaming(false);
-    }
-  }, [sessionId, isStreaming, onSessionCreated, queryClient]);
+    },
+    [sessionId, isStreaming, onSessionCreated, queryClient],
+  );
 
   const clearMessages = useCallback(() => {
     setMessages([]);

@@ -1,12 +1,11 @@
 """Database connection and session management."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.core.config import get_settings
-
 
 settings = get_settings()
 
@@ -31,7 +30,7 @@ async_session_maker = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database sessions.
-    
+
     Usage:
         @router.get("/items")
         async def get_items(db: AsyncSession = Depends(get_db)):
@@ -51,7 +50,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 @asynccontextmanager
 async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
     """Context manager for database sessions.
-    
+
     Usage:
         async with get_db_context() as db:
             result = await db.execute(...)
@@ -69,11 +68,11 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize database (create tables).
-    
+
     Note: In production, use Alembic migrations instead.
     """
     from src.db.models import Base
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

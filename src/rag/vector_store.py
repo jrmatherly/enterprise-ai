@@ -3,55 +3,58 @@
 Manages Qdrant collections for document embeddings.
 """
 
-from typing import Optional
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
-from qdrant_client.http.models import Distance, VectorParams, PayloadSchemaType
+from qdrant_client.http.models import Distance, PayloadSchemaType, VectorParams
 
 from src.core.config import get_settings
 
 
 class VectorStore:
     """Qdrant vector store for RAG embeddings.
-    
+
     Each knowledge base has its own collection with:
-    - Vector embeddings (1536 dims for text-embedding-3-small)
+    - Vector embeddings (dimensions from config)
     - Payload: document_id, chunk_index, text, metadata, ACL
     """
-    
-    EMBEDDING_DIMENSION = 1536  # text-embedding-3-small
-    
-    def __init__(self, client: QdrantClient):
+
+    def __init__(self, client: QdrantClient, embedding_dim: int | None = None):
         self.client = client
-    
+        # Get embedding dimensions from config if not provided
+        settings = get_settings()
+        self.embedding_dim = embedding_dim or settings.embedding_dimensions
+
     async def create_collection(
         self,
         collection_name: str,
-        embedding_dim: int = EMBEDDING_DIMENSION,
+        embedding_dim: int | None = None,
     ) -> bool:
         """Create a new Qdrant collection for a knowledge base.
-        
+
         Args:
             collection_name: Unique collection name (usually kb_{kb_id})
-            embedding_dim: Embedding vector dimension
-            
+            embedding_dim: Embedding vector dimension (defaults to config setting)
+
         Returns:
             True if created, False if already exists
         """
+        # Use instance embedding_dim if not overridden
+        dim = embedding_dim or self.embedding_dim
+
         # Check if collection exists
         collections = self.client.get_collections()
         existing_names = [c.name for c in collections.collections]
-        
+
         if collection_name in existing_names:
             return False
-        
+
         # Create collection with optimized settings
         self.client.create_collection(
             collection_name=collection_name,
             vectors_config=VectorParams(
-                size=embedding_dim,
+                size=dim,
                 distance=Distance.COSINE,
             ),
             # Enable payload indexing for filtering
@@ -59,7 +62,7 @@ class VectorStore:
                 indexing_threshold=1000,  # Build index after 1000 points
             ),
         )
-        
+
         # Create payload indexes for common filters
         self.client.create_payload_index(
             collection_name=collection_name,
@@ -81,9 +84,9 @@ class VectorStore:
             field_name="acl_groups",
             field_schema=PayloadSchemaType.KEYWORD,
         )
-        
+
         return True
-    
+
     async def delete_collection(self, collection_name: str) -> bool:
         """Delete a collection."""
         try:
@@ -91,14 +94,14 @@ class VectorStore:
             return True
         except Exception:
             return False
-    
+
     async def upsert_chunks(
         self,
         collection_name: str,
         chunks: list[dict],
     ) -> int:
         """Insert or update document chunks.
-        
+
         Args:
             collection_name: Target collection
             chunks: List of chunk dicts with:
@@ -111,13 +114,13 @@ class VectorStore:
                 - tenant_id: Owning tenant
                 - acl_users: List of user IDs with access
                 - acl_groups: List of group IDs with access
-                
+
         Returns:
             Number of chunks upserted
         """
         if not chunks:
             return 0
-        
+
         points = [
             qdrant_models.PointStruct(
                 id=chunk.get("id", str(uuid4())),
@@ -134,21 +137,21 @@ class VectorStore:
             )
             for chunk in chunks
         ]
-        
+
         self.client.upsert(
             collection_name=collection_name,
             points=points,
         )
-        
+
         return len(points)
-    
+
     async def delete_document_chunks(
         self,
         collection_name: str,
         document_id: str,
     ) -> int:
         """Delete all chunks for a document.
-        
+
         Returns:
             Number of chunks deleted
         """
@@ -164,7 +167,7 @@ class VectorStore:
                 ]
             ),
         ).count
-        
+
         # Delete by document_id filter
         self.client.delete(
             collection_name=collection_name,
@@ -179,21 +182,21 @@ class VectorStore:
                 )
             ),
         )
-        
+
         return count_before
-    
+
     async def search(
         self,
         collection_name: str,
         query_vector: list[float],
         limit: int = 5,
-        user_id: Optional[str] = None,
-        group_ids: Optional[list[str]] = None,
-        tenant_id: Optional[str] = None,
+        user_id: str | None = None,
+        group_ids: list[str] | None = None,
+        tenant_id: str | None = None,
         score_threshold: float = 0.5,
     ) -> list[dict]:
         """Search for similar chunks with access control filtering.
-        
+
         Args:
             collection_name: Collection to search
             query_vector: Query embedding
@@ -202,13 +205,13 @@ class VectorStore:
             group_ids: User's group IDs for ACL filtering
             tenant_id: Tenant ID for filtering
             score_threshold: Minimum similarity score
-            
+
         Returns:
             List of matching chunks with scores
         """
         # Build ACL filter
         filter_conditions = []
-        
+
         if tenant_id:
             filter_conditions.append(
                 qdrant_models.FieldCondition(
@@ -216,7 +219,7 @@ class VectorStore:
                     match=qdrant_models.MatchValue(value=tenant_id),
                 )
             )
-        
+
         # ACL: user must be in acl_users OR have a group in acl_groups
         acl_conditions = []
         if user_id:
@@ -233,39 +236,37 @@ class VectorStore:
                     match=qdrant_models.MatchAny(any=group_ids),
                 )
             )
-        
+
         if acl_conditions:
-            filter_conditions.append(
-                qdrant_models.Filter(should=acl_conditions)
-            )
-        
+            filter_conditions.append(qdrant_models.Filter(should=acl_conditions))
+
         # Combine filters
         query_filter = None
         if filter_conditions:
             query_filter = qdrant_models.Filter(must=filter_conditions)
-        
-        # Execute search
-        results = self.client.search(
+
+        # Execute search using query_points (renamed from search in qdrant-client 1.7+)
+        results = self.client.query_points(
             collection_name=collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=limit,
             query_filter=query_filter,
             score_threshold=score_threshold,
         )
-        
+
         return [
             {
-                "id": str(result.id),
-                "score": result.score,
-                "text": result.payload.get("text", ""),
-                "document_id": result.payload.get("document_id"),
-                "chunk_index": result.payload.get("chunk_index"),
-                "metadata": result.payload.get("metadata", {}),
+                "id": str(point.id),
+                "score": point.score,
+                "text": point.payload.get("text", ""),
+                "document_id": point.payload.get("document_id"),
+                "chunk_index": point.payload.get("chunk_index"),
+                "metadata": point.payload.get("metadata", {}),
             }
-            for result in results
+            for point in results.points
         ]
-    
-    async def get_collection_info(self, collection_name: str) -> Optional[dict]:
+
+    async def get_collection_info(self, collection_name: str) -> dict | None:
         """Get collection statistics."""
         try:
             info = self.client.get_collection(collection_name)
@@ -280,16 +281,16 @@ class VectorStore:
 
 
 # Singleton instance
-_vector_store: Optional[VectorStore] = None
+_vector_store: VectorStore | None = None
 
 
 def get_vector_store() -> VectorStore:
     """Get or create the global VectorStore instance."""
     global _vector_store
-    
+
     if _vector_store is None:
         settings = get_settings()
         client = QdrantClient(url=settings.qdrant_url)
         _vector_store = VectorStore(client)
-    
+
     return _vector_store

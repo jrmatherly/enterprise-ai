@@ -1,21 +1,42 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Sidebar } from './Sidebar';
-import { ChatArea } from './ChatArea';
-import { cn } from '@/lib/utils/cn';
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
+import type { Session } from "@/lib/hooks/useSessions";
+import { cn } from "@/lib/utils/cn";
+import { ChatArea } from "./ChatArea";
+import { Sidebar } from "./Sidebar";
 
 export function ChatLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Handle new session creation with optimistic title update
+  const handleSessionCreated = useCallback(
+    (id: string, title?: string) => {
+      setCurrentSessionId(id);
+
+      // If we got a title, optimistically update the sessions cache
+      if (title) {
+        queryClient.setQueryData<Session[]>(["sessions", 50], (old) => {
+          if (!old) return old;
+          return old.map((session) =>
+            session.id === id ? { ...session, title } : session,
+          );
+        });
+      }
+    },
+    [queryClient],
+  );
 
   return (
     <div className="flex h-dvh bg-neutral-950 text-neutral-100">
       {/* Sidebar */}
       <aside
         className={cn(
-          'flex-shrink-0 border-r border-neutral-800 bg-neutral-900 transition-[width] duration-200 ease-out',
-          sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
+          "flex-shrink-0 border-r border-neutral-800 bg-neutral-900 transition-[width] duration-200 ease-out",
+          sidebarOpen ? "w-64" : "w-0 overflow-hidden",
         )}
       >
         <Sidebar
@@ -32,7 +53,7 @@ export function ChatLayout() {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="flex size-9 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-100"
-            aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
           >
             <svg
               className="size-5"
@@ -50,7 +71,7 @@ export function ChatLayout() {
           </button>
           <div className="flex-1">
             <h1 className="text-sm font-medium text-neutral-200">
-              {currentSessionId ? 'Chat Session' : 'New Conversation'}
+              {currentSessionId ? "Chat Session" : "New Conversation"}
             </h1>
           </div>
         </header>
@@ -58,7 +79,7 @@ export function ChatLayout() {
         {/* Chat Content */}
         <ChatArea
           sessionId={currentSessionId}
-          onSessionCreated={setCurrentSessionId}
+          onSessionCreated={handleSessionCreated}
         />
       </main>
     </div>

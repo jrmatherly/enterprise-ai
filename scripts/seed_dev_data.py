@@ -12,20 +12,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
+
 from src.db.database import async_session_maker
-from src.db.models import Tenant, User, TenantType
+from src.db.models import Tenant, TenantType, User
 
 
 async def seed_dev_data():
     """Create development tenant and user for testing."""
-    
+
     async with async_session_maker() as db:
         # Check if dev tenant already exists
         result = await db.execute(
             select(Tenant).where(Tenant.id == "00000000-0000-0000-0000-000000000000")
         )
         existing_tenant = result.scalar_one_or_none()
-        
+
         if existing_tenant:
             print("✓ Dev tenant already exists")
         else:
@@ -41,13 +42,13 @@ async def seed_dev_data():
             )
             db.add(tenant)
             print("✓ Created dev tenant")
-        
+
         # Check if dev user already exists
         result = await db.execute(
             select(User).where(User.id == "00000000-0000-0000-0000-000000000001")
         )
         existing_user = result.scalar_one_or_none()
-        
+
         if existing_user:
             print("✓ Dev user already exists")
         else:
@@ -63,7 +64,7 @@ async def seed_dev_data():
             )
             db.add(user)
             print("✓ Created dev user")
-        
+
         await db.commit()
         print("\n✓ Dev data seeded successfully!")
         print("  - Tenant ID: 00000000-0000-0000-0000-000000000000")

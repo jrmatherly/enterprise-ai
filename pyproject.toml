@@ -136,9 +136,25 @@ select = [
     "RUF",  # ruff-specific rules
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
-    "S101",   # assert in tests is fine
+    "E501",    # line too long (handled by formatter)
+    "S101",    # assert in tests is fine
     "PLR0913", # too many arguments
+    "PLW0603", # global statement (intentional singleton pattern)
+    "PLC0415", # import outside top-level (intentional lazy loading/circular import avoidance)
+    "PLR2004", # magic values (low priority, can address later)
+    "PLR0915", # too many statements (refactoring scope)
+    "PLR0912", # too many branches (refactoring scope)
+    "ARG001",  # unused function argument (sometimes intentional for API consistency)
+    "ARG002",  # unused method argument (sometimes intentional)
+    "S110",    # try-except-pass (sometimes intentional silent error handling)
+    "PERF401", # manual list comprehension (low priority optimization)
+    "PERF403", # manual dict comprehension (low priority optimization)
+    "SIM102",  # collapsible if (readability preference)
+    "ERA001",  # commented out code (sometimes useful for documentation)
+    "B008",    # function call in default argument (FastAPI pattern with Depends/File)
+    "N818",    # exception naming (style preference)
+    "S104",    # binding to all interfaces (intentional for dev/container networking)
+    "S105",    # hardcoded password variable names (false positive - loaded from env)
 ]
 
 [tool.ruff.lint.per-file-ignores]

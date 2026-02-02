@@ -8,10 +8,8 @@ Handles chat completions with Azure AI Foundry, including:
 """
 
 import time
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import AsyncGenerator, Optional
-from uuid import uuid4
 
 from langfuse import Langfuse
 from openai import AsyncAzureOpenAI
@@ -22,16 +20,18 @@ from src.core.config import get_settings
 @dataclass
 class ChatMessage:
     """A message in a conversation."""
+
     role: str  # system, user, assistant, tool
     content: str
-    name: Optional[str] = None
-    tool_calls: Optional[list] = None
-    tool_call_id: Optional[str] = None
+    name: str | None = None
+    tool_calls: list | None = None
+    tool_call_id: str | None = None
 
 
 @dataclass
 class ChatContext:
     """Context for a chat request."""
+
     user_id: str
     tenant_id: str
     session_id: str
@@ -43,6 +43,7 @@ class ChatContext:
 @dataclass
 class ChatResponse:
     """Response from a chat completion."""
+
     content: str
     model: str
     prompt_tokens: int
@@ -50,36 +51,37 @@ class ChatResponse:
     total_tokens: int
     latency_ms: float
     finish_reason: str
-    tool_calls: Optional[list] = None
+    tool_calls: list | None = None
 
 
 @dataclass
 class StreamChunk:
     """A chunk of a streaming response."""
+
     content: str
-    finish_reason: Optional[str] = None
-    tool_calls: Optional[list] = None
+    finish_reason: str | None = None
+    tool_calls: list | None = None
 
 
 class AgentRuntime:
     """Runtime for AI agent interactions.
-    
+
     Provides a high-level interface for:
     - Chat completions with Azure AI Foundry
     - Streaming responses
     - Langfuse tracing
     - Multi-region routing
     """
-    
+
     def __init__(self):
         self.settings = get_settings()
         self._clients: dict[str, AsyncAzureOpenAI] = {}
-        self._langfuse: Optional[Langfuse] = None
-        
+        self._langfuse: Langfuse | None = None
+
         # Initialize clients
         self._init_clients()
         self._init_langfuse()
-    
+
     def _init_clients(self) -> None:
         """Initialize Azure OpenAI clients for each region."""
         # East US
@@ -89,7 +91,7 @@ class AgentRuntime:
                 api_key=self.settings.azure_ai_eastus_api_key,
                 api_version=self.settings.azure_openai_api_version,
             )
-        
+
         # East US 2
         if self.settings.azure_ai_eastus2_endpoint:
             self._clients["eastus2"] = AsyncAzureOpenAI(
@@ -97,7 +99,7 @@ class AgentRuntime:
                 api_key=self.settings.azure_ai_eastus2_api_key,
                 api_version=self.settings.azure_openai_api_version,
             )
-    
+
     def _init_langfuse(self) -> None:
         """Initialize Langfuse for observability."""
         if self.settings.langfuse_public_key and self.settings.langfuse_secret_key:
@@ -106,18 +108,18 @@ class AgentRuntime:
                 secret_key=self.settings.langfuse_secret_key,
                 host=self.settings.langfuse_host,
             )
-    
+
     def _get_client(self, model: str) -> tuple[AsyncAzureOpenAI, str]:
         """Get the appropriate client for a model.
-        
+
         Uses model routing configuration to pick the right region.
-        
+
         Returns:
             Tuple of (client, region)
         """
         routing = self.settings.get_model_routing()
         region = routing.get(model, self.settings.azure_ai_default_region)
-        
+
         client = self._clients.get(region)
         if not client:
             # Fallback to any available client
@@ -126,9 +128,9 @@ class AgentRuntime:
                 client = self._clients[region]
             else:
                 raise RuntimeError("No Azure AI clients configured")
-        
+
         return client, region
-    
+
     def _build_system_prompt(self, context: ChatContext) -> str:
         """Build the system prompt with RAG context."""
         base_prompt = """You are an intelligent AI assistant for an enterprise organization.
@@ -140,13 +142,15 @@ Key behaviors:
 - If you don't know something, say so
 - Follow organizational policies and guidelines
 - Protect sensitive information"""
-        
+
         # Add retrieved context if available
         if context.retrieved_context:
-            context_text = "\n\n".join([
-                f"[Source: {doc.get('filename', 'Unknown')}]\n{doc.get('content', '')}"
-                for doc in context.retrieved_context
-            ])
+            context_text = "\n\n".join(
+                [
+                    f"[Source: {doc.get('filename', 'Unknown')}]\n{doc.get('content', '')}"
+                    for doc in context.retrieved_context
+                ]
+            )
             base_prompt += f"""
 
 ## Retrieved Context
@@ -155,36 +159,36 @@ Use the following information to help answer the user's question:
 {context_text}
 
 When using this information, cite the source document."""
-        
+
         return base_prompt
-    
+
     async def chat(
         self,
         messages: list[ChatMessage],
         context: ChatContext,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ) -> ChatResponse:
         """Send a chat completion request.
-        
+
         Args:
             messages: Conversation history
             context: Request context (user, tenant, session info)
             model: Model to use (defaults to configured default)
             temperature: Sampling temperature
             max_tokens: Maximum tokens in response
-            
+
         Returns:
             ChatResponse with content and usage info
         """
         model = model or self.settings.azure_ai_default_model
         client, region = self._get_client(model)
-        
+
         # Build messages with system prompt
         system_prompt = self._build_system_prompt(context)
         api_messages = [{"role": "system", "content": system_prompt}]
-        
+
         for msg in messages:
             api_msg = {"role": msg.role, "content": msg.content}
             if msg.name:
@@ -194,7 +198,7 @@ When using this information, cite the source document."""
             if msg.tool_call_id:
                 api_msg["tool_call_id"] = msg.tool_call_id
             api_messages.append(api_msg)
-        
+
         # Create Langfuse generation if available
         generation = None
         if self._langfuse:
@@ -214,10 +218,10 @@ When using this information, cite the source document."""
             except Exception as e:
                 # Langfuse errors shouldn't break the chat flow
                 print(f"Langfuse generation start failed: {e}")
-        
+
         # Make the API call
         start_time = time.perf_counter()
-        
+
         try:
             # Build request params - some models don't support all params
             create_params = {
@@ -232,15 +236,15 @@ When using this information, cite the source document."""
             else:
                 # For newer models, use max_completion_tokens
                 create_params["max_completion_tokens"] = max_tokens
-            
+
             response = await client.chat.completions.create(**create_params)
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000
-            
+
             # Extract response
             choice = response.choices[0]
             usage = response.usage
-            
+
             result = ChatResponse(
                 content=choice.message.content or "",
                 model=response.model,
@@ -249,9 +253,11 @@ When using this information, cite the source document."""
                 total_tokens=usage.total_tokens,
                 latency_ms=latency_ms,
                 finish_reason=choice.finish_reason,
-                tool_calls=choice.message.tool_calls if hasattr(choice.message, "tool_calls") else None,
+                tool_calls=choice.message.tool_calls
+                if hasattr(choice.message, "tool_calls")
+                else None,
             )
-            
+
             # Update Langfuse generation
             if generation:
                 generation.update(
@@ -267,9 +273,9 @@ When using this information, cite the source document."""
                     },
                 )
                 generation.end()
-            
+
             return result
-            
+
         except Exception as e:
             if generation:
                 generation.update(
@@ -278,38 +284,38 @@ When using this information, cite the source document."""
                 )
                 generation.end()
             raise
-    
+
     async def chat_stream(
         self,
         messages: list[ChatMessage],
         context: ChatContext,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ) -> AsyncGenerator[StreamChunk, None]:
         """Stream a chat completion response.
-        
+
         Args:
             messages: Conversation history
             context: Request context
             model: Model to use
             temperature: Sampling temperature
             max_tokens: Maximum tokens in response
-            
+
         Yields:
             StreamChunk objects with content fragments
         """
         model = model or self.settings.azure_ai_default_model
         client, region = self._get_client(model)
-        
+
         # Build messages with system prompt
         system_prompt = self._build_system_prompt(context)
         api_messages = [{"role": "system", "content": system_prompt}]
-        
+
         for msg in messages:
             api_msg = {"role": msg.role, "content": msg.content}
             api_messages.append(api_msg)
-        
+
         # Create Langfuse generation if available
         generation = None
         if self._langfuse:
@@ -329,11 +335,11 @@ When using this information, cite the source document."""
                 )
             except Exception as e:
                 print(f"Langfuse generation start failed: {e}")
-        
+
         # Stream the response
         full_content = ""
         start_time = time.perf_counter()
-        
+
         try:
             # Build request params - some models don't support all params
             create_params = {
@@ -346,25 +352,25 @@ When using this information, cite the source document."""
                 create_params["max_tokens"] = max_tokens
             else:
                 create_params["max_completion_tokens"] = max_tokens
-            
+
             stream = await client.chat.completions.create(**create_params)
-            
+
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
                     finish_reason = chunk.choices[0].finish_reason
-                    
+
                     content = delta.content or ""
                     full_content += content
-                    
+
                     yield StreamChunk(
                         content=content,
                         finish_reason=finish_reason,
                         tool_calls=delta.tool_calls if hasattr(delta, "tool_calls") else None,
                     )
-            
+
             latency_ms = (time.perf_counter() - start_time) * 1000
-            
+
             # Update Langfuse generation
             if generation:
                 generation.update(
@@ -375,7 +381,7 @@ When using this information, cite the source document."""
                     },
                 )
                 generation.end()
-                
+
         except Exception as e:
             if generation:
                 generation.update(
@@ -384,18 +390,18 @@ When using this information, cite the source document."""
                 )
                 generation.end()
             raise
-    
+
     async def shutdown(self) -> None:
         """Cleanup resources."""
         if self._langfuse:
             self._langfuse.flush()
-        
+
         for client in self._clients.values():
             await client.close()
 
 
 # Global runtime instance
-_runtime: Optional[AgentRuntime] = None
+_runtime: AgentRuntime | None = None
 
 
 def get_runtime() -> AgentRuntime:

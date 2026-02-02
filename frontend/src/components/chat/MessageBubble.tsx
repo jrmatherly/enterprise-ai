@@ -1,12 +1,21 @@
-import { cn } from '@/lib/utils/cn';
+'use client';
+
+import { code } from '@streamdown/code';
+import { Streamdown } from 'streamdown';
+import { getInitials, useUser } from '@/lib/contexts/UserContext';
 import type { Message } from '@/lib/types';
+import { cn } from '@/lib/utils/cn';
 
 interface MessageBubbleProps {
   message: Message;
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
+  const { user } = useUser();
   const isUser = message.role === 'user';
+  
+  // Get user initials or fallback to 'U'
+  const userInitials = user ? getInitials(user.name) : 'U';
   
   return (
     <div
@@ -24,7 +33,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-neutral-700 text-neutral-300'
         )}
       >
-        {isUser ? 'U' : 'AI'}
+        {isUser ? userInitials : 'AI'}
       </div>
 
       {/* Message Content */}
@@ -36,9 +45,19 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-neutral-800 text-neutral-100'
         )}
       >
-        <div className="whitespace-pre-wrap text-sm leading-relaxed text-pretty">
-          {message.content}
-        </div>
+        {isUser ? (
+          // User messages: plain text, no markdown
+          <div className="whitespace-pre-wrap text-sm leading-relaxed text-pretty">
+            {message.content}
+          </div>
+        ) : (
+          // AI messages: render markdown with streamdown
+          <div className="prose prose-invert prose-sm max-w-none">
+            <Streamdown plugins={{ code }}>
+              {message.content}
+            </Streamdown>
+          </div>
+        )}
         
         {message.timestamp && formatTime(message.timestamp) && (
           <div
@@ -61,7 +80,7 @@ function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   
   // Check for invalid date
-  if (isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     return '';
   }
   

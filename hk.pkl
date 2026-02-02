@@ -1,0 +1,130 @@
+amends "package://github.com/jdx/hk/releases/download/v1.35.0/hk@1.35.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.35.0/hk@1.35.0#/Builtins.pkl"
+
+// ============================================
+// Linters - run on staged files
+// ============================================
+local linters = new Mapping<String, Step> {
+    // Python linting with ruff
+    ["ruff"] {
+        glob = "src/**/*.py"
+        check = "uv run ruff check {{ files }}"
+        fix = "uv run ruff check --fix {{ files }}"
+    }
+    
+    // Python formatting with ruff
+    ["ruff-format"] {
+        glob = "src/**/*.py"
+        check = "uv run ruff format --check {{ files }}"
+        fix = "uv run ruff format {{ files }}"
+    }
+    
+    // Frontend linting with biome
+    ["biome"] {
+        glob = "frontend/src/**/*.{ts,tsx}"
+        check = "cd frontend && npx @biomejs/biome check --no-errors-on-unmatched {{ files }}"
+        fix = "cd frontend && npx @biomejs/biome check --write --no-errors-on-unmatched {{ files }}"
+    }
+}
+
+// ============================================
+// Security & Quality Checks
+// ============================================
+local securityChecks = new Mapping<String, Step> {
+    // Prevent accidental secret commits
+    ["detect-private-key"] {
+        glob = "*"
+        check = "hk util detect-private-key {{ files }}"
+    }
+    
+    // Block large files (>500KB)
+    ["large-files"] {
+        glob = "*"
+        check = "hk util check-added-large-files --maxkb 500 {{ files }}"
+    }
+    
+    // Check for merge conflict markers
+    ["merge-conflicts"] {
+        glob = "*"
+        check = "hk util check-merge-conflict {{ files }}"
+    }
+    
+    // Python debug statements (print, pdb, breakpoint)
+    ["python-debug"] {
+        glob = "src/**/*.py"
+        check = "hk util python-debug-statements {{ files }}"
+    }
+}
+
+// ============================================
+// File hygiene
+// ============================================
+local fileHygiene = new Mapping<String, Step> {
+    // Fix trailing whitespace
+    ["trailing-whitespace"] {
+        glob = "*.{py,ts,tsx,json,yaml,yml,md,toml}"
+        check = "hk util trailing-whitespace {{ files }}"
+        fix = "hk util trailing-whitespace --fix {{ files }}"
+    }
+    
+    // End of file fixer
+    ["eof-fixer"] {
+        glob = "*.{py,ts,tsx,json,yaml,yml,md,toml}"
+        check = "hk util end-of-file-fixer {{ files }}"
+        fix = "hk util end-of-file-fixer --fix {{ files }}"
+    }
+}
+
+// ============================================
+// Hook Definitions
+// ============================================
+hooks {
+    // Pre-commit: linting + security + hygiene
+    ["pre-commit"] {
+        fix = true
+        stash = "git"
+        steps {
+            ...securityChecks
+            ...fileHygiene
+            ...linters
+        }
+    }
+    
+    // Commit message validation
+    ["commit-msg"] {
+        steps {
+            ["conventional-commit"] {
+                check = "hk util check-conventional-commit $1"
+            }
+        }
+    }
+    
+    // Pre-push: optional checks before pushing
+    // NOTE: no-commit-to-branch removed - direct pushes to main allowed
+    // Re-enable if using PR-based workflow:
+    // ["pre-push"] {
+    //     steps {
+    //         ["no-push-main"] {
+    //             check = "hk util no-commit-to-branch --branch main --branch master"
+    //         }
+    //     }
+    // }
+    
+    // Manual fix command
+    ["fix"] {
+        fix = true
+        steps {
+            ...fileHygiene
+            ...linters
+        }
+    }
+    
+    // Manual check command (CI-friendly)
+    ["check"] {
+        steps {
+            ...securityChecks
+            ...fileHygiene
+            ...linters
+        }
+    }
+}

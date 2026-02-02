@@ -3,24 +3,23 @@
 Provides common dependencies for API routes.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agent.runtime import AgentRuntime, get_runtime
 from src.auth.middleware import get_current_user, get_optional_user
 from src.auth.oidc import UserClaims
-from src.auth.rbac import Permission, has_permission, PermissionChecker
-from src.db.database import get_db
-from src.db.repository import SessionRepository, MessageRepository, UsageRepository
-from src.agent.runtime import AgentRuntime, get_runtime
+from src.auth.rbac import Permission, PermissionChecker
 from src.core.config import Settings, get_settings
 from src.core.rate_limiting import CombinedRateLimiter, get_rate_limiter
-
+from src.db.database import get_db
+from src.db.repository import MessageRepository, SessionRepository, UsageRepository
 
 # Type aliases for cleaner signatures
 CurrentUser = Annotated[UserClaims, Depends(get_current_user)]
-OptionalUser = Annotated[Optional[UserClaims], Depends(get_optional_user)]
+OptionalUser = Annotated[UserClaims | None, Depends(get_optional_user)]
 DB = Annotated[AsyncSession, Depends(get_db)]
 Runtime = Annotated[AgentRuntime, Depends(get_runtime)]
 RateLimiter = Annotated[CombinedRateLimiter, Depends(get_rate_limiter)]

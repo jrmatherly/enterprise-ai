@@ -29,6 +29,28 @@ mise run setup
 mise run dev
 ```
 
+## Development Workflow
+
+```bash
+# Install git hooks (one-time)
+mise run hooks-install
+
+# Run linting before committing
+mise run lint          # Backend (Python/Ruff)
+mise run ui-lint       # Frontend (TypeScript/Biome)
+
+# Run full CI locally
+mise run ci
+
+# Auto-fix issues
+mise run hooks-fix
+```
+
+Git hooks automatically enforce:
+- **Pre-commit**: Linting, formatting, security checks
+- **Commit-msg**: [Conventional Commits](https://www.conventionalcommits.org/) format
+- **Pre-push**: Protected branch checks
+
 Services:
 - Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
@@ -40,6 +62,7 @@ Services:
 - [Development Setup](dev/SETUP.md)
 - [Frontend Architecture](docs/FRONTEND-ARCHITECTURE.md)
 - [Implementation Plan](IMPLEMENTATION-PLAN.md)
+- [Mise Enhancements](docs/MISE-ENHANCEMENT-OPPORTUNITIES.md)
 
 ## License
 

@@ -1,9 +1,9 @@
-import { createAuthClient } from "better-auth/react";
 import { genericOAuthClient } from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
 
 /**
  * Better Auth client for React components
- * 
+ *
  * Provides hooks and methods for authentication:
  * - useSession() - Get current session
  * - signIn.social() - Sign in with Microsoft
@@ -12,7 +12,7 @@ import { genericOAuthClient } from "better-auth/client/plugins";
 export const authClient = createAuthClient({
   // Base URL of the auth server (same origin in our case)
   baseURL: typeof window !== "undefined" ? window.location.origin : "",
-  
+
   plugins: [
     // Support for generic OAuth providers
     genericOAuthClient(),
@@ -20,13 +20,7 @@ export const authClient = createAuthClient({
 });
 
 // Export commonly used methods and hooks
-export const {
-  signIn,
-  signOut,
-  signUp,
-  useSession,
-  getSession,
-} = authClient;
+export const { signIn, signOut, signUp, useSession, getSession } = authClient;
 
 /**
  * Sign in with Microsoft EntraID

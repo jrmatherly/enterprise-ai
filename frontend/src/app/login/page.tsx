@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
 import { useSearchParams } from "next/navigation";
-import { signInWithMicrosoft } from "@/lib/auth-client";
 import { useState } from "react";
+import { signInWithMicrosoft } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -13,7 +13,7 @@ export default function LoginPage() {
   const handleSignIn = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signInWithMicrosoft(callbackUrl);
     } catch (err) {

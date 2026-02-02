@@ -9,6 +9,7 @@
 ## Phase Overview
 
 | Phase | Focus | Duration | Status |
+
 |-------|-------|----------|--------|
 | **Phase 0** | Setup & Validation | 1 week | ✅ Complete |
 | **Phase 1** | Core Foundation | 2 weeks | ✅ Complete |
@@ -177,6 +178,9 @@ Store conversation history in database:
 ### 2.4 Knowledge Base API ✅
 - [x] `GET /knowledge-bases` - List accessible KBs
 - [x] `POST /knowledge-bases` - Create KB (creates Qdrant collection)
+- [x] `GET /knowledge-bases/{id}` - Get KB details
+- [x] `DELETE /knowledge-bases/{id}` - Delete KB, documents, and Qdrant collection
+- [x] `GET /knowledge-bases/{id}/documents` - List documents in KB
 - [x] `POST /knowledge-bases/{id}/documents` - Upload and process documents
 - [x] `DELETE /knowledge-bases/{id}/documents/{id}` - Delete document + vectors
 - [x] `POST /knowledge-bases/{id}/query` - Direct semantic search
@@ -202,13 +206,28 @@ Store conversation history in database:
 - [ ] Thread-based conversations
 - [ ] User identity mapping
 
-### 3.2 Web UI ✅ (MVP Complete)
+### 3.2 Web UI ✅ (Complete)
 - [x] Next.js 15 project with React 19
 - [x] better-auth with Microsoft EntraID SSO
+- [x] SSO cookie forwarding via API proxy route
 - [x] Chat interface with streaming
 - [x] Session management (sidebar, history)
-- [ ] Document upload UI
-- [ ] Knowledge base browser
+- [x] Auto-generated conversation titles
+- [x] User avatar with initials (handles "Last, First" format)
+- [x] Delete/rename conversations
+- [x] Session limit (50) with auto-cleanup
+- [x] Knowledge Base list page (`/knowledge-bases`)
+- [x] Knowledge Base detail page (`/knowledge-bases/[id]`)
+- [x] Create KB modal with scope selection
+- [x] Document upload with drag-and-drop
+- [x] Document list with status badges
+- [x] Document deletion
+- [x] Knowledge Base deletion (from list and detail pages)
+- [x] Navigation from UserMenu dropdown
+- [x] Favicon (SVG with gradient)
+- [x] KB selector in chat input (pill button + dropdown)
+- [x] Selected KBs shown as removable chips
+- [x] RAG context injection in chat
 
 ---
 
@@ -232,6 +251,7 @@ Store conversation history in database:
 ### What's Working Now
 
 | Feature | Status | How to Test |
+
 |---------|--------|-------------|
 | API Server | ✅ | `mise run dev` → http://localhost:8000 |
 | Frontend | ✅ | http://localhost:3001 |
@@ -240,31 +260,40 @@ Store conversation history in database:
 | Streaming | ✅ | POST to `/api/v1/chat/stream` |
 | Auth (Dev) | ✅ | Header: `X-Dev-Bypass: true` |
 | Auth (SSO) | ✅ | Microsoft EntraID via better-auth |
+| SSO Sessions | ✅ | Cookie forwarding via API proxy |
 | Rate Limiting | ✅ | TPM + RPM with 429 responses |
 | RBAC | ✅ | Permission-based route protection |
 | Sessions | ✅ | `GET/POST /api/v1/sessions` |
-| Knowledge Bases | ✅ | `GET/POST /api/v1/knowledge-bases` |
+| Auto-Titles | ✅ | LLM-generated conversation titles |
+| User Avatars | ✅ | Initials from SSO name |
+| Knowledge Bases | ✅ | Full CRUD `/api/v1/knowledge-bases` |
+| KB Browser UI | ✅ | http://localhost:3001/knowledge-bases |
+| KB Deletion | ✅ | Delete button on cards and detail page |
+| Document Upload | ✅ | Drag-drop or click to upload |
+| Document Deletion | ✅ | Delete button in document table |
+| KB Selection in Chat | ✅ | Pill button + dropdown in input area |
 | RAG Retrieval | ✅ | Chat with `knowledge_base_ids` |
 | Database | ✅ | 8 tables via Alembic |
 | Docker Stack | ✅ | 9 services (all healthy) |
 | Langfuse | ✅ | http://localhost:3000 |
 
 ### What's Next
-1. **PDF/DOCX Extraction** — Support more document types
-2. **Semantic Caching** — Cache similar queries
-3. **Slack Integration** — Bot for team access
-4. **Admin UI** — Tenant/KB management
+1. ~~**End-to-End RAG Test** — Create KB → upload doc → query with context~~ ✅ **DONE**
+2. ~~**KB Selection in Chat UI** — Allow selecting knowledge bases in frontend~~ ✅ **DONE**
+3. **Slack Integration** — Bot for team access (Phase 3)
+4. **Admin UI** — Tenant/KB management (Phase 4)
 
 ---
 
 ## Dependencies & Status
 
 | Dependency | Status | Notes |
+
 |------------|--------|-------|
 | Azure AI Foundry | ✅ Done | Multi-region (East US, East US 2) |
 | EntraID App | ✅ Done | Tenant ID, Client ID, Secret configured |
 | PostgreSQL | ✅ Done | Docker, dual-database (langfuse + eai) |
-| Qdrant | ✅ Running | Awaiting RAG implementation |
+| Qdrant | ✅ Running | v1.13.2 server, qdrant-client 1.16.2 |
 | Langfuse | ✅ Running | v3 with ClickHouse |
 | Slack Workspace | ⏳ Pending | Needs admin approval |
 

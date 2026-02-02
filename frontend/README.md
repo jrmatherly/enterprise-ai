@@ -62,6 +62,7 @@ npm run typecheck # TypeScript check
 ## Environment Variables
 
 | Variable | Description | Default |
+
 |----------|-------------|---------|
 | `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:8000` |
 

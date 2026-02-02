@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
+import { auth } from "@/lib/auth";
 
 /**
  * Better Auth API route handler
- * 
+ *
  * Handles all authentication endpoints:
  * - /api/auth/sign-in/*
  * - /api/auth/sign-out

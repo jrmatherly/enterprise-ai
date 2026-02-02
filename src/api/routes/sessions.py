@@ -1,46 +1,58 @@
 """Session management endpoints."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from src.api.deps import CurrentUser, DB
-from src.db.models import Session, Message
-
+from src.api.deps import DB, CurrentUser
+from src.core.config import get_settings
+from src.db.models import Session
 
 router = APIRouter()
+settings = get_settings()
+
+
+def format_datetime(dt: datetime | None) -> str | None:
+    """Format datetime to ISO format with Z suffix for UTC."""
+    if dt is None:
+        return None
+    # Replace +00:00 with Z for cleaner ISO format
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 class SessionResponse(BaseModel):
     """Session summary."""
+
     id: str
-    title: Optional[str]
+    title: str | None
     message_count: int
     total_tokens: int
     created_at: str
     updated_at: str
-    last_message_at: Optional[str]
+    last_message_at: str | None
 
 
 class SessionDetailResponse(SessionResponse):
     """Session with message history."""
+
     messages: list[dict]
 
 
 class CreateSessionRequest(BaseModel):
     """Request to create a new session."""
-    title: Optional[str] = Field(None, max_length=255)
+
+    title: str | None = Field(None, max_length=255)
     knowledge_base_ids: list[str] = Field(default_factory=list)
 
 
 class UpdateSessionRequest(BaseModel):
     """Request to update a session."""
-    title: Optional[str] = Field(None, max_length=255)
+
+    title: str | None = Field(None, max_length=255)
 
 
 @router.get("/sessions", response_model=list[SessionResponse])
@@ -51,7 +63,7 @@ async def list_sessions(
     offset: int = Query(0, ge=0),
 ):
     """List the current user's chat sessions.
-    
+
     Returns sessions ordered by most recently updated.
     """
     # Note: In dev mode without real users, we'd need to handle this differently
@@ -59,29 +71,29 @@ async def list_sessions(
     try:
         # Use selectinload to eagerly fetch messages to avoid lazy loading issues
         from sqlalchemy.orm import selectinload
-        
+
         query = (
             select(Session)
             .options(selectinload(Session.messages))
             .where(Session.user_id == user.sub)
-            .where(Session.is_active == True)
+            .where(Session.is_active)
             .order_by(Session.updated_at.desc())
             .limit(limit)
             .offset(offset)
         )
-        
+
         result = await db.execute(query)
         sessions = result.scalars().all()
-        
+
         return [
             SessionResponse(
                 id=s.id,
                 title=s.title,
                 message_count=len(s.messages) if s.messages else 0,
                 total_tokens=s.total_tokens,
-                created_at=s.created_at.isoformat() + "Z",
-                updated_at=s.updated_at.isoformat() + "Z",
-                last_message_at=s.last_message_at.isoformat() + "Z" if s.last_message_at else None,
+                created_at=format_datetime(s.created_at),
+                updated_at=format_datetime(s.updated_at),
+                last_message_at=format_datetime(s.last_message_at),
             )
             for s in sessions
         ]
@@ -97,34 +109,76 @@ async def create_session(
     user: CurrentUser,
     db: DB,
 ):
-    """Create a new chat session."""
-    session = Session(
-        id=str(uuid4()),
-        user_id=user.sub,
-        title=body.title,
-        knowledge_base_ids=body.knowledge_base_ids,
-    )
-    
+    """Create a new chat session.
+
+    If the user has reached the maximum session limit, the oldest sessions
+    will be automatically deleted to make room (if auto-cleanup is enabled).
+    """
     try:
+        # Check current session count and cleanup if needed
+        if settings.session_auto_cleanup:
+            await _cleanup_excess_sessions(db, user.sub, settings.max_sessions_per_user - 1)
+
+        session = Session(
+            id=str(uuid4()),
+            user_id=user.sub,
+            title=body.title,
+            knowledge_base_ids=body.knowledge_base_ids,
+        )
+
         db.add(session)
         await db.commit()
         await db.refresh(session)
-        
+
         return SessionResponse(
             id=session.id,
             title=session.title,
             message_count=0,
             total_tokens=0,
-            created_at=session.created_at.isoformat() + "Z",
-            updated_at=session.updated_at.isoformat() + "Z",
+            created_at=format_datetime(session.created_at),
+            updated_at=format_datetime(session.updated_at),
             last_message_at=None,
         )
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create session: {str(e)}"
+            detail=f"Failed to create session: {e!s}",
+        ) from None
+
+
+async def _cleanup_excess_sessions(db: DB, user_id: str, max_to_keep: int):
+    """Delete oldest sessions if user exceeds the limit.
+
+    Marks excess sessions as inactive (soft delete).
+    """
+    # Count active sessions
+    count_query = select(func.count(Session.id)).where(
+        Session.user_id == user_id,
+        Session.is_active,
+    )
+    result = await db.execute(count_query)
+    session_count = result.scalar() or 0
+
+    if session_count > max_to_keep:
+        # Get IDs of sessions to deactivate (oldest first)
+        excess_count = session_count - max_to_keep
+        excess_query = (
+            select(Session.id)
+            .where(Session.user_id == user_id, Session.is_active)
+            .order_by(Session.updated_at.asc())
+            .limit(excess_count)
         )
+        result = await db.execute(excess_query)
+        session_ids_to_delete = [row[0] for row in result.fetchall()]
+
+        if session_ids_to_delete:
+            # Soft delete by marking as inactive
+            from sqlalchemy import update
+
+            await db.execute(
+                update(Session).where(Session.id.in_(session_ids_to_delete)).values(is_active=False)
+            )
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
@@ -140,19 +194,16 @@ async def get_session(
             Session.id == session_id,
             Session.user_id == user.sub,
         )
-        
+
         if include_messages:
             query = query.options(selectinload(Session.messages))
-        
+
         result = await db.execute(query)
         session = result.scalar_one_or_none()
-        
+
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
         messages = []
         if include_messages and session.messages:
             messages = [
@@ -160,19 +211,19 @@ async def get_session(
                     "id": m.id,
                     "role": m.role.value,
                     "content": m.content,
-                    "created_at": m.created_at.isoformat() + "Z",
+                    "created_at": format_datetime(m.created_at),
                 }
                 for m in session.messages
             ]
-        
+
         return SessionDetailResponse(
             id=session.id,
             title=session.title,
             message_count=len(messages),
             total_tokens=session.total_tokens,
-            created_at=session.created_at.isoformat() + "Z",
-            updated_at=session.updated_at.isoformat() + "Z",
-            last_message_at=session.last_message_at.isoformat() + "Z" if session.last_message_at else None,
+            created_at=format_datetime(session.created_at),
+            updated_at=format_datetime(session.updated_at),
+            last_message_at=format_datetime(session.last_message_at),
             messages=messages,
         )
     except HTTPException:
@@ -180,8 +231,8 @@ async def get_session(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve session: {str(e)}"
-        )
+            detail=f"Failed to retrieve session: {e!s}",
+        ) from None
 
 
 @router.patch("/sessions/{session_id}", response_model=SessionResponse)
@@ -193,34 +244,32 @@ async def update_session(
 ):
     """Update a session's metadata."""
     try:
-        query = select(Session).where(
-            Session.id == session_id,
-            Session.user_id == user.sub,
+        query = (
+            select(Session)
+            .options(selectinload(Session.messages))
+            .where(Session.id == session_id, Session.user_id == user.sub)
         )
-        
+
         result = await db.execute(query)
         session = result.scalar_one_or_none()
-        
+
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
         if body.title is not None:
             session.title = body.title
-        
+
         await db.commit()
         await db.refresh(session)
-        
+
         return SessionResponse(
             id=session.id,
             title=session.title,
             message_count=len(session.messages) if session.messages else 0,
             total_tokens=session.total_tokens,
-            created_at=session.created_at.isoformat() + "Z",
-            updated_at=session.updated_at.isoformat() + "Z",
-            last_message_at=session.last_message_at.isoformat() + "Z" if session.last_message_at else None,
+            created_at=format_datetime(session.created_at),
+            updated_at=format_datetime(session.updated_at),
+            last_message_at=format_datetime(session.last_message_at),
         )
     except HTTPException:
         raise
@@ -228,8 +277,8 @@ async def update_session(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update session: {str(e)}"
-        )
+            detail=f"Failed to update session: {e!s}",
+        ) from None
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -244,24 +293,21 @@ async def delete_session(
             Session.id == session_id,
             Session.user_id == user.sub,
         )
-        
+
         result = await db.execute(query)
         session = result.scalar_one_or_none()
-        
+
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
         session.is_active = False
         await db.commit()
-        
+
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete session: {str(e)}"
-        )
+            detail=f"Failed to delete session: {e!s}",
+        ) from None

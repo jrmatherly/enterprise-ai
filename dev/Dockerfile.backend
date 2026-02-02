@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files first (for layer caching)
-COPY pyproject.toml uv.lock ./
+# README.md is needed for hatchling build (pyproject.toml references it)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install ALL dependencies including dev (for migrations, testing, etc.)
 # Using --frozen to ensure reproducible installs from lockfile
