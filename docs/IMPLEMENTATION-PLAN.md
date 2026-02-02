@@ -1,19 +1,19 @@
 # Implementation Plan — Enterprise AI Platform MVP
 
-**Created:** 2026-01-31  
-**Last Updated:** 2026-02-01  
-**Status:** Phase 2 Complete, Phase 3 Ready
+**Created:** 2026-01-31
+**Last Updated:** 2026-02-02
+**Status:** Phase 2 Complete, Infrastructure Hardened, Phase 3 Ready
 
 ---
 
 ## Phase Overview
 
 | Phase | Focus | Duration | Status |
-
 |-------|-------|----------|--------|
 | **Phase 0** | Setup & Validation | 1 week | ✅ Complete |
 | **Phase 1** | Core Foundation | 2 weeks | ✅ Complete |
 | **Phase 2** | RAG & Knowledge Bases | 1.5 weeks | ✅ Complete |
+| **Infra** | Docs, Tooling, CI/CD | 1 day | ✅ Complete |
 | **Phase 3** | Channels (Slack + Web) | 1 week | ⏳ Next |
 | **Phase 4** | Admin & Polish | 0.5-1 week | ⏳ Not Started |
 
@@ -299,22 +299,68 @@ Store conversation history in database:
 
 ---
 
+## Infrastructure & Tooling ✅ COMPLETE
+
+### Documentation Reorganization ✅
+- [x] Created organized `docs/` hierarchy:
+  - `docs/architecture/` — System and component architecture
+  - `docs/setup/` — Environment and setup guides
+  - `docs/development/` — Contributing and tooling docs
+  - `docs/reference/` — Audits and analysis
+- [x] Created `docs/README.md` as documentation index
+- [x] Updated all cross-references in README.md and frontend/README.md
+- [x] Git history preserved via `git mv`
+
+### Project Cleanup ✅
+- [x] Removed 14 empty scaffold directories:
+  - `spikes/*` (3 dirs), `src/api/middleware/`, `src/agent/{prompts,tools}/`
+  - `frontend/src/components/{layout,ui}/`, `deploy/{helm,k8s/*}/`
+  - `tests/{unit,integration,e2e}/`, `docs/api/`
+
+### Environment Configuration ✅
+- [x] Complete `.env.example` with all 60+ variables
+- [x] Documented in `docs/setup/ENVIRONMENT-VARIABLES.md`
+- [x] Optional variables properly commented (EASTUS2, LANGFUSE_INIT, OTLP)
+
+### Git Hooks (hk) ✅
+- [x] Created `hk.pkl` with pre-commit and commit-msg hooks
+- [x] Security checks: detect-private-key, large-files, merge-conflicts
+- [x] Linting: ruff (backend), biome (frontend)
+- [x] Formatting: trailing-whitespace, eof-fixer
+- [x] Commit format: conventional commits validation
+- [x] Silent execution (output to /dev/null) to prevent Claude Code crashes
+- [x] Manual install via `mise run git:hooks:install`
+
+### CI/CD ✅
+- [x] GitHub Actions workflow (`.github/workflows/ci.yml`)
+- [x] Backend checks: ruff lint, mypy typecheck, pytest
+- [x] Frontend checks: biome lint, tsc typecheck
+- [x] Hook validation via `hk run check`
+
+---
+
 ## Development Commands
 
 ```bash
+# First-time setup
+mise run setup                # Build containers, start Docker, run migrations
+mise run git:hooks:install    # Install git hooks (once after clone)
+
 # Daily development
-mise run dev              # Start everything
+mise run dev                  # Start everything
 
 # After model changes
 mise run db-migrate "description"
 mise run db-upgrade
 
 # Testing
-mise run chat             # Quick API test
-mise run test             # Run test suite
+mise run chat                 # Quick API test
+mise run test                 # Run test suite
 
 # Code quality
-mise run check            # Lint + format + typecheck
+mise run check                # Lint + format + typecheck
+mise run git:hooks:check      # Run all hook checks manually
+mise run git:hooks:fix        # Auto-fix hook issues
 ```
 
 ---
