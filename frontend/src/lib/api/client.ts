@@ -63,6 +63,14 @@ interface StreamChunk {
   error?: string;
   session_id?: string;
   title?: string; // Auto-generated title for new sessions
+  sources?: Array<{
+    ref: number;
+    document_id: string;
+    filename: string;
+    page: string | null;
+    score: number;
+    excerpt: string;
+  }>;
 }
 
 export async function* streamChat(

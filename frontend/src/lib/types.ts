@@ -7,9 +7,12 @@ export interface Message {
 }
 
 export interface Source {
-  title: string;
-  url?: string;
-  knowledgeBase?: string;
+  ref: number;
+  document_id: string;
+  filename: string;
+  page: string | null;
+  score: number;
+  excerpt: string;
 }
 
 export interface Session {

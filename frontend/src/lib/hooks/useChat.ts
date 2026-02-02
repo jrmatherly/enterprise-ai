@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, streamChat } from "@/lib/api/client";
-import type { Message } from "@/lib/types";
+import type { Message, Source } from "@/lib/types";
 
 interface UseChatOptions {
   sessionId: string | null;
@@ -84,6 +84,7 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
       try {
         let fullContent = "";
         let newSessionId: string | null = null;
+        let messageSources: Source[] | undefined;
 
         for await (const chunk of streamChat(
           content,
@@ -105,13 +106,19 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
             newSessionId = chunk.session_id;
           }
 
+          // Capture sources from the final chunk
+          if (chunk.sources) {
+            messageSources = chunk.sources;
+          }
+
           if (chunk.done) {
-            // Add completed assistant message
+            // Add completed assistant message with sources
             const assistantMessage: Message = {
               id: `assistant-${Date.now()}`,
               role: "assistant",
               content: fullContent,
               timestamp: new Date().toISOString(),
+              sources: messageSources,
             };
             setMessages((prev) => [...prev, assistantMessage]);
             setStreamingContent(null);
