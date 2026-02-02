@@ -32,6 +32,7 @@ class KnowledgeBaseResponse(BaseModel):
     document_count: int
     is_shared: bool
     system_prompt: str | None
+    grounded_only: bool
     created_at: str
     updated_at: str
 
@@ -46,6 +47,10 @@ class CreateKnowledgeBaseRequest(BaseModel):
         None,
         max_length=4000,
         description="Custom instructions for AI when using this knowledge base",
+    )
+    grounded_only: bool = Field(
+        False,
+        description="When true, AI will only respond using KB contents, no external knowledge",
     )
 
 
@@ -177,6 +182,7 @@ async def list_knowledge_bases(
                 document_count=kb.document_count,
                 is_shared=kb.is_shared,
                 system_prompt=kb.system_prompt,
+                grounded_only=kb.grounded_only,
                 created_at=kb.created_at.isoformat(),
                 updated_at=kb.updated_at.isoformat(),
             )
@@ -220,6 +226,7 @@ async def create_knowledge_base(
         collection_name=collection_name,
         embedding_model=settings.embedding_model,  # Use configured model
         system_prompt=body.system_prompt,
+        grounded_only=body.grounded_only,
     )
 
     try:
@@ -239,6 +246,7 @@ async def create_knowledge_base(
             document_count=0,
             is_shared=kb.is_shared,
             system_prompt=kb.system_prompt,
+            grounded_only=kb.grounded_only,
             created_at=kb.created_at.isoformat(),
             updated_at=kb.updated_at.isoformat(),
         )
@@ -281,6 +289,7 @@ async def get_knowledge_base(
             document_count=kb.document_count,
             is_shared=kb.is_shared,
             system_prompt=kb.system_prompt,
+            grounded_only=kb.grounded_only,
             created_at=kb.created_at.isoformat(),
             updated_at=kb.updated_at.isoformat(),
         )
@@ -302,6 +311,10 @@ class UpdateKnowledgeBaseRequest(BaseModel):
         None,
         max_length=4000,
         description="Custom instructions for AI when using this knowledge base",
+    )
+    grounded_only: bool | None = Field(
+        None,
+        description="When true, AI will only respond using KB contents, no external knowledge",
     )
 
 
@@ -337,6 +350,8 @@ async def update_knowledge_base(
             kb.description = body.description
         if body.system_prompt is not None:
             kb.system_prompt = body.system_prompt if body.system_prompt else None
+        if body.grounded_only is not None:
+            kb.grounded_only = body.grounded_only
 
         await db.commit()
         await db.refresh(kb)
@@ -349,6 +364,7 @@ async def update_knowledge_base(
             document_count=kb.document_count,
             is_shared=kb.is_shared,
             system_prompt=kb.system_prompt,
+            grounded_only=kb.grounded_only,
             created_at=kb.created_at.isoformat(),
             updated_at=kb.updated_at.isoformat(),
         )

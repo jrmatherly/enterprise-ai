@@ -112,14 +112,22 @@ Each knowledge base can have a custom `system_prompt` that provides domain-speci
 The final system prompt is assembled in `AgentRuntime._build_system_prompt()`:
 
 ```
-[Base Enterprise Prompt]
+[Base Prompt - minimal if KB has custom instructions, full if not]
+
+[GROUNDED MODE CONSTRAINTS - if any KB has grounded_only=true]
 
 ## Knowledge Base Instructions
 [Combined KB system_prompts - if any knowledge bases have custom instructions]
 
-## Retrieved Context
-[RAG context with source citations - if documents were retrieved]
+<retrieved_context>
+[RAG context with source citations - wrapped in tags for clear reference]
+</retrieved_context>
 ```
+
+**Key behaviors:**
+- When KB provides custom instructions, the base prompt becomes minimal to allow persona override
+- Retrieved context is wrapped in `<retrieved_context>` tags so KB instructions can reference it
+- Grounding constraints appear before KB instructions when enabled
 
 ### Example KB System Prompt
 
@@ -157,6 +165,41 @@ PATCH /api/knowledge-bases/{id}
   "system_prompt": "Updated instructions..."
 }
 ```
+
+### Grounded Mode
+
+Knowledge bases can enable **Grounded Mode** (`grounded_only: true`) to restrict the AI to ONLY respond using KB contents:
+
+```bash
+POST /api/knowledge-bases
+{
+  "name": "Store Policies",
+  "system_prompt": "You are Store Operations...",
+  "grounded_only": true
+}
+```
+
+**When Grounded Mode is enabled:**
+- AI receives strict constraints to only use `<retrieved_context>`
+- If information isn't found, AI states: "I don't have information about that in my knowledge base"
+- External knowledge, assumptions, and general information are blocked
+- Every claim must be traceable to a source document
+
+**Use Grounded Mode for:**
+- Policy/compliance knowledge bases
+- Legal or regulatory documents
+- Product specifications requiring accuracy
+- Training materials that must match official content
+
+**Note:** If multiple KBs are queried and ANY has `grounded_only=true`, grounding is enforced for the entire response.
+
+### Writing Custom Instructions
+
+See the **[Custom Instructions Template](../reference/KB-CUSTOM-INSTRUCTIONS-TEMPLATE.md)** for:
+- Fill-in template for writing effective instructions
+- Examples for different use cases (operations, legal, IT support)
+- Best practices and common mistakes
+- How to reference `<retrieved_context>` in your instructions
 
 ## Citation Support
 

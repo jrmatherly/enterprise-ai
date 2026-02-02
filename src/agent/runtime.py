@@ -39,6 +39,7 @@ class ChatContext:
     knowledge_base_ids: list[str] = field(default_factory=list)
     retrieved_context: list[dict] = field(default_factory=list)
     kb_instructions: str = ""
+    grounded_only: bool = False
 
 
 @dataclass
@@ -134,7 +135,11 @@ class AgentRuntime:
 
     def _build_system_prompt(self, context: ChatContext) -> str:
         """Build the system prompt with RAG context and KB instructions."""
-        base_prompt = """You are an intelligent AI assistant for an enterprise organization.
+        # Use minimal base when KB provides custom instructions (allows persona override)
+        if context.kb_instructions:
+            base_prompt = "Follow the instructions below for this conversation."
+        else:
+            base_prompt = """You are an intelligent AI assistant for an enterprise organization.
 You help users with their questions by providing accurate, helpful, and professional responses.
 
 Key behaviors:
@@ -144,6 +149,17 @@ Key behaviors:
 - Follow organizational policies and guidelines
 - Protect sensitive information"""
 
+        # Add grounding constraints if enabled (must come before KB instructions)
+        if context.grounded_only:
+            base_prompt += """
+
+CRITICAL CONSTRAINT - GROUNDED RESPONSES ONLY:
+You must ONLY respond using information from the <retrieved_context> section below.
+- If the answer is not found in <retrieved_context>, clearly state: "I don't have information about that in my knowledge base."
+- Do NOT use external knowledge, general information, or make assumptions beyond what is explicitly stated in <retrieved_context>.
+- Do NOT offer to help with topics outside the <retrieved_context>.
+- Every claim must be traceable to a specific source in <retrieved_context>."""
+
         # Add knowledge base custom instructions if provided
         if context.kb_instructions:
             base_prompt += f"""
@@ -151,7 +167,7 @@ Key behaviors:
 ## Knowledge Base Instructions
 {context.kb_instructions}"""
 
-        # Add retrieved context if available
+        # Add retrieved context if available (wrapped in tags for clear reference)
         if context.retrieved_context:
             context_text = "\n\n".join(
                 [
@@ -161,12 +177,11 @@ Key behaviors:
             )
             base_prompt += f"""
 
-## Retrieved Context
-Use the following information to help answer the user's question:
-
+<retrieved_context>
 {context_text}
+</retrieved_context>
 
-When using this information, cite the source document."""
+When responding, cite sources from <retrieved_context> using the format: [Source: filename]."""
 
         return base_prompt
 

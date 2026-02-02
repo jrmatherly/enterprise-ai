@@ -299,6 +299,13 @@ class KnowledgeBase(Base):
         comment="Custom instructions for AI when using this knowledge base",
     )
 
+    # Grounding mode - only respond from KB contents, no external knowledge
+    grounded_only: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="When true, AI must only respond using KB contents, no external knowledge",
+    )
+
     # Document count cache
     document_count: Mapped[int] = mapped_column(Integer, default=0)
 

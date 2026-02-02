@@ -193,19 +193,25 @@ async def chat(
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
     kb_instructions = ""
+    grounded_only = False
     if body.knowledge_base_ids:
         try:
-            # Fetch KB custom instructions
+            # Fetch KB custom instructions and grounded_only setting
             from src.db.models import KnowledgeBase as KBModel
 
-            kb_query = select(KBModel.system_prompt).where(
+            kb_query = select(KBModel.system_prompt, KBModel.grounded_only).where(
                 KBModel.id.in_(body.knowledge_base_ids),
-                KBModel.system_prompt.isnot(None),
             )
             kb_result = await db.execute(kb_query)
-            prompts = [row[0] for row in kb_result.all() if row[0]]
+            kb_rows = kb_result.all()
+
+            # Collect prompts and check if any KB requires grounding
+            prompts = [row[0] for row in kb_rows if row[0]]
             if prompts:
                 kb_instructions = "\n\n".join(prompts)
+
+            # If ANY selected KB has grounded_only=True, enforce grounding
+            grounded_only = any(row[1] for row in kb_rows)
 
             retriever = await get_retriever()
             chunks = await retriever.retrieve(
@@ -241,6 +247,7 @@ async def chat(
         knowledge_base_ids=body.knowledge_base_ids or [],
         retrieved_context=retrieved_context,
         kb_instructions=kb_instructions,
+        grounded_only=grounded_only,
     )
 
     # Build message history
@@ -414,19 +421,25 @@ async def chat_stream(
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
     kb_instructions = ""
+    grounded_only = False
     if body.knowledge_base_ids:
         try:
-            # Fetch KB custom instructions
+            # Fetch KB custom instructions and grounded_only setting
             from src.db.models import KnowledgeBase as KBModel
 
-            kb_query = select(KBModel.system_prompt).where(
+            kb_query = select(KBModel.system_prompt, KBModel.grounded_only).where(
                 KBModel.id.in_(body.knowledge_base_ids),
-                KBModel.system_prompt.isnot(None),
             )
             kb_result = await db.execute(kb_query)
-            prompts = [row[0] for row in kb_result.all() if row[0]]
+            kb_rows = kb_result.all()
+
+            # Collect prompts and check if any KB requires grounding
+            prompts = [row[0] for row in kb_rows if row[0]]
             if prompts:
                 kb_instructions = "\n\n".join(prompts)
+
+            # If ANY selected KB has grounded_only=True, enforce grounding
+            grounded_only = any(row[1] for row in kb_rows)
 
             retriever = await get_retriever()
             chunks = await retriever.retrieve(
@@ -462,6 +475,7 @@ async def chat_stream(
         knowledge_base_ids=body.knowledge_base_ids or [],
         retrieved_context=retrieved_context,
         kb_instructions=kb_instructions,
+        grounded_only=grounded_only,
     )
 
     # Build message history

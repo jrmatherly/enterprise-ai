@@ -20,6 +20,7 @@ docs/
 System design, infrastructure, and technical architecture documentation.
 
 | Document | Description |
+
 |----------|-------------|
 | [MVP Architecture](architecture/MVP-ARCHITECTURE.md) | Core architecture, components, and design decisions |
 | [RAG Pipeline](architecture/RAG-PIPELINE.md) | Document retrieval, embeddings, citations, and troubleshooting |
@@ -62,6 +63,7 @@ Technical references and analysis documents.
 | Document | Description |
 
 |----------|-------------|
+| [KB Custom Instructions Template](reference/KB-CUSTOM-INSTRUCTIONS-TEMPLATE.md) | Template and examples for writing KB custom instructions |
 | [Dependency Audit](reference/DEPENDENCY-AUDIT.md) | Security audit and version analysis |
 | [Microsoft Repos Analysis](reference/MICROSOFT-REPOS-ANALYSIS.md) | Analysis of Microsoft AI repositories |
 
