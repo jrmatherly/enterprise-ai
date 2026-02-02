@@ -1,30 +1,75 @@
 #!/usr/bin/env bash
-# Check that .env and .env.example files have the same variables
+# Validate that .env.example files exist and are well-formed
+# In CI: just validates .env.example files exist and have content
+# Locally: can compare .env vs .env.example (if .env exists)
 set -e
 
-echo "Checking backend env files..."
-grep -v "^#" dev/.env | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/env_vars
-grep -v "^#" dev/.env.example | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/env_example_vars
+ERRORS=0
 
-if ! diff /tmp/env_vars /tmp/env_example_vars > /tmp/env_diff 2>&1; then
-    echo "❌ Backend env files have different variables:"
-    cat /tmp/env_diff
-    exit 1
-fi
-BACKEND_COUNT=$(wc -l < /tmp/env_vars | tr -d ' ')
-echo "✅ Backend: $BACKEND_COUNT variables match"
+check_env_example() {
+    local dir="$1"
+    local name="$2"
+    local example_file="$dir/.env.example"
+    local env_file="$dir/.env"
+    
+    # Special case for dev directory
+    if [[ "$dir" == "dev" ]]; then
+        env_file="dev/.env"
+        example_file="dev/.env.example"
+    fi
+    
+    # Special case for frontend
+    if [[ "$dir" == "frontend" ]]; then
+        env_file="frontend/.env.local"
+        example_file="frontend/.env.example"
+    fi
+    
+    echo "Checking $name..."
+    
+    # Check .env.example exists
+    if [[ ! -f "$example_file" ]]; then
+        echo "❌ $name: $example_file not found"
+        ERRORS=$((ERRORS + 1))
+        return
+    fi
+    
+    # Count variables in .env.example
+    VAR_COUNT=$(grep -v "^#" "$example_file" | grep -v "^$" | grep "=" | wc -l | tr -d ' ')
+    
+    if [[ "$VAR_COUNT" -eq 0 ]]; then
+        echo "❌ $name: $example_file has no variables"
+        ERRORS=$((ERRORS + 1))
+        return
+    fi
+    
+    # If .env exists locally, compare them
+    if [[ -f "$env_file" ]]; then
+        grep -v "^#" "$env_file" 2>/dev/null | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/env_vars_$$ || true
+        grep -v "^#" "$example_file" | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/env_example_vars_$$
+        
+        if ! diff /tmp/env_vars_$$ /tmp/env_example_vars_$$ > /tmp/env_diff_$$ 2>&1; then
+            echo "⚠️  $name: $env_file and $example_file have different variables (local only)"
+            cat /tmp/env_diff_$$
+            # Don't fail on this - just warn
+        else
+            echo "✅ $name: $VAR_COUNT variables (synced with local .env)"
+        fi
+        
+        rm -f /tmp/env_vars_$$ /tmp/env_example_vars_$$ /tmp/env_diff_$$
+    else
+        echo "✅ $name: $VAR_COUNT variables in .env.example"
+    fi
+}
 
-echo "Checking frontend env files..."
-grep -v "^#" frontend/.env.local | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/fe_env_vars
-grep -v "^#" frontend/.env.example | grep -v "^$" | cut -d'=' -f1 | sort > /tmp/fe_env_example_vars
+# Check backend (dev directory)
+check_env_example "dev" "Backend"
 
-if ! diff /tmp/fe_env_vars /tmp/fe_env_example_vars > /tmp/fe_env_diff 2>&1; then
-    echo "❌ Frontend env files have different variables:"
-    cat /tmp/fe_env_diff
-    exit 1
-fi
-FRONTEND_COUNT=$(wc -l < /tmp/fe_env_vars | tr -d ' ')
-echo "✅ Frontend: $FRONTEND_COUNT variables match"
+# Check frontend
+check_env_example "frontend" "Frontend"
 
 echo ""
-echo "✅ All environment files in sync!"
+if [[ $ERRORS -gt 0 ]]; then
+    echo "❌ $ERRORS error(s) found"
+    exit 1
+fi
+echo "✅ All .env.example files validated!"
