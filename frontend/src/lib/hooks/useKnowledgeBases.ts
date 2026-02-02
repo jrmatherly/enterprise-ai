@@ -10,6 +10,7 @@ export interface KnowledgeBase {
   scope: "personal" | "team" | "department" | "organization";
   document_count: number;
   is_shared: boolean;
+  system_prompt: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -29,6 +30,13 @@ export interface CreateKBRequest {
   name: string;
   description?: string;
   scope?: "personal" | "team" | "department" | "organization";
+  system_prompt?: string;
+}
+
+export interface UpdateKBRequest {
+  name?: string;
+  description?: string;
+  system_prompt?: string | null;
 }
 
 /**
@@ -74,6 +82,26 @@ export function useCreateKnowledgeBase() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+    },
+  });
+}
+
+/**
+ * Update a knowledge base
+ */
+export function useUpdateKnowledgeBase() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ kbId, data }: { kbId: string; data: UpdateKBRequest }) => {
+      return apiClient<KnowledgeBase>(`/api/v1/knowledge-bases/${kbId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base", variables.kbId] });
     },
   });
 }

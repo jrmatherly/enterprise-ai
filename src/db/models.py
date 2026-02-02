@@ -27,7 +27,6 @@ class Base(DeclarativeBase):
     """Base class for all models."""
 
 
-
 # ============================================
 # Enums
 # ============================================
@@ -148,9 +147,7 @@ class User(Base):
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -204,9 +201,7 @@ class Session(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    last_message_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     # Note: user_id is a String that can hold either UUID (dev) or better-auth ID (SSO)
@@ -296,6 +291,13 @@ class KnowledgeBase(Base):
 
     # Embedding model used
     embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-small")
+
+    # Custom instructions for RAG interactions
+    system_prompt: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Custom instructions for AI when using this knowledge base",
+    )
 
     # Document count cache
     document_count: Mapped[int] = mapped_column(Integer, default=0)

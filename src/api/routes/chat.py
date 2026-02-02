@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from src.agent.runtime import AgentRuntime, ChatContext, ChatMessage
 from src.api.deps import (
@@ -192,8 +193,21 @@ async def chat(
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
     rag_context_text = ""
+    kb_instructions = ""
     if body.knowledge_base_ids:
         try:
+            # Fetch KB custom instructions
+            from src.db.models import KnowledgeBase as KBModel
+
+            kb_query = select(KBModel.system_prompt).where(
+                KBModel.id.in_(body.knowledge_base_ids),
+                KBModel.system_prompt.isnot(None),
+            )
+            kb_result = await db.execute(kb_query)
+            prompts = [row[0] for row in kb_result.all() if row[0]]
+            if prompts:
+                kb_instructions = "\n\n".join(prompts)
+
             retriever = await get_retriever()
             chunks = await retriever.retrieve(
                 query=body.message,
@@ -239,13 +253,20 @@ async def chat(
 
     # Add RAG context as system message if available
     if rag_context_text:
-        rag_system_msg = (
+        rag_parts = [
             "Use the following retrieved context to answer the user's question. "
             "IMPORTANT: When using information from the context, cite your sources "
             "using the bracket notation [1], [2], etc. that matches the source numbers. "
-            "If the context doesn't contain relevant information, say so clearly.\n\n"
-            f"Retrieved Context:\n{rag_context_text}"
-        )
+            "If the context doesn't contain relevant information, say so clearly."
+        ]
+
+        # Add KB-specific instructions if provided
+        if kb_instructions:
+            rag_parts.append(f"\nKnowledge Base Instructions:\n{kb_instructions}")
+
+        rag_parts.append(f"\nRetrieved Context:\n{rag_context_text}")
+
+        rag_system_msg = "\n".join(rag_parts)
         messages.append(ChatMessage(role="system", content=rag_system_msg))
 
     # Add current user message
@@ -313,8 +334,6 @@ async def chat(
         sources = None
         if retrieved_context:
             # Get document info for sources
-            from sqlalchemy import select
-
             from src.db.models import Document
 
             doc_ids = list({r["document_id"] for r in retrieved_context})
@@ -408,8 +427,21 @@ async def chat_stream(
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
     rag_context_text = ""
+    kb_instructions = ""
     if body.knowledge_base_ids:
         try:
+            # Fetch KB custom instructions
+            from src.db.models import KnowledgeBase as KBModel
+
+            kb_query = select(KBModel.system_prompt).where(
+                KBModel.id.in_(body.knowledge_base_ids),
+                KBModel.system_prompt.isnot(None),
+            )
+            kb_result = await db.execute(kb_query)
+            prompts = [row[0] for row in kb_result.all() if row[0]]
+            if prompts:
+                kb_instructions = "\n\n".join(prompts)
+
             retriever = await get_retriever()
             chunks = await retriever.retrieve(
                 query=body.message,
@@ -453,13 +485,20 @@ async def chat_stream(
 
     # Add RAG context as system message if available
     if rag_context_text:
-        rag_system_msg = (
+        rag_parts = [
             "Use the following retrieved context to answer the user's question. "
             "IMPORTANT: When using information from the context, cite your sources "
             "using the bracket notation [1], [2], etc. that matches the source numbers. "
-            "If the context doesn't contain relevant information, say so clearly.\n\n"
-            f"Retrieved Context:\n{rag_context_text}"
-        )
+            "If the context doesn't contain relevant information, say so clearly."
+        ]
+
+        # Add KB-specific instructions if provided
+        if kb_instructions:
+            rag_parts.append(f"\nKnowledge Base Instructions:\n{kb_instructions}")
+
+        rag_parts.append(f"\nRetrieved Context:\n{rag_context_text}")
+
+        rag_system_msg = "\n".join(rag_parts)
         messages.insert(0, ChatMessage(role="system", content=rag_system_msg))
 
     messages.append(ChatMessage(role="user", content=body.message))

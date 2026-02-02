@@ -12,7 +12,6 @@ class ExtractionError(Exception):
     """Raised when text extraction fails."""
 
 
-
 class TextExtractor(ABC):
     """Base class for text extractors."""
 
@@ -88,7 +87,9 @@ class DOCXExtractor(TextExtractor):
         try:
             from docx import Document
         except ImportError:
-            raise ExtractionError("python-docx not installed. Run: pip install python-docx") from None
+            raise ExtractionError(
+                "python-docx not installed. Run: pip install python-docx"
+            ) from None
 
         try:
             doc = Document(BytesIO(content))
@@ -187,7 +188,6 @@ class DocumentExtractor:
 
         # Clean up extracted text
         return self._clean_text(text)
-
 
     def _clean_text(self, text: str) -> str:
         """Clean and normalize extracted text."""

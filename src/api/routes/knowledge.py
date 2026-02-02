@@ -31,6 +31,7 @@ class KnowledgeBaseResponse(BaseModel):
     scope: str
     document_count: int
     is_shared: bool
+    system_prompt: str | None
     created_at: str
     updated_at: str
 
@@ -41,6 +42,11 @@ class CreateKnowledgeBaseRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
     scope: str = Field("personal", description="Scope: personal, team, department, organization")
+    system_prompt: str | None = Field(
+        None,
+        max_length=4000,
+        description="Custom instructions for AI when using this knowledge base",
+    )
 
 
 class DocumentResponse(BaseModel):
@@ -170,6 +176,7 @@ async def list_knowledge_bases(
                 scope=kb.scope.value,
                 document_count=kb.document_count,
                 is_shared=kb.is_shared,
+                system_prompt=kb.system_prompt,
                 created_at=kb.created_at.isoformat(),
                 updated_at=kb.updated_at.isoformat(),
             )
@@ -212,6 +219,7 @@ async def create_knowledge_base(
         owner_id=user.sub if scope_enum == KnowledgeBaseScope.PERSONAL else None,
         collection_name=collection_name,
         embedding_model=settings.embedding_model,  # Use configured model
+        system_prompt=body.system_prompt,
     )
 
     try:
@@ -230,6 +238,7 @@ async def create_knowledge_base(
             scope=kb.scope.value,
             document_count=0,
             is_shared=kb.is_shared,
+            system_prompt=kb.system_prompt,
             created_at=kb.created_at.isoformat(),
             updated_at=kb.updated_at.isoformat(),
         )
@@ -271,6 +280,7 @@ async def get_knowledge_base(
             scope=kb.scope.value,
             document_count=kb.document_count,
             is_shared=kb.is_shared,
+            system_prompt=kb.system_prompt,
             created_at=kb.created_at.isoformat(),
             updated_at=kb.updated_at.isoformat(),
         )
@@ -280,6 +290,74 @@ async def get_knowledge_base(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve knowledge base: {e!s}",
+        ) from None
+
+
+class UpdateKnowledgeBaseRequest(BaseModel):
+    """Request to update a knowledge base."""
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
+    system_prompt: str | None = Field(
+        None,
+        max_length=4000,
+        description="Custom instructions for AI when using this knowledge base",
+    )
+
+
+@router.patch("/knowledge-bases/{kb_id}", response_model=KnowledgeBaseResponse)
+async def update_knowledge_base(
+    kb_id: str,
+    body: UpdateKnowledgeBaseRequest,
+    user: CurrentUser,
+    db: DB,
+):
+    """Update a knowledge base's settings."""
+    try:
+        query = select(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        result = await db.execute(query)
+        kb = result.scalar_one_or_none()
+
+        if not kb:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge base not found"
+            )
+
+        # Check ownership (only owner can update)
+        if kb.owner_id != user.sub:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the owner can update this knowledge base",
+            )
+
+        # Update fields if provided
+        if body.name is not None:
+            kb.name = body.name
+        if body.description is not None:
+            kb.description = body.description
+        if body.system_prompt is not None:
+            kb.system_prompt = body.system_prompt if body.system_prompt else None
+
+        await db.commit()
+        await db.refresh(kb)
+
+        return KnowledgeBaseResponse(
+            id=kb.id,
+            name=kb.name,
+            description=kb.description,
+            scope=kb.scope.value,
+            document_count=kb.document_count,
+            is_shared=kb.is_shared,
+            system_prompt=kb.system_prompt,
+            created_at=kb.created_at.isoformat(),
+            updated_at=kb.updated_at.isoformat(),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update knowledge base: {e!s}",
         ) from None
 
 

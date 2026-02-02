@@ -30,7 +30,6 @@ class OIDCValidationError(Exception):
     """Raised when token validation fails."""
 
 
-
 class EntraIDValidator:
     """Validates JWTs from Microsoft Entra ID.
 
