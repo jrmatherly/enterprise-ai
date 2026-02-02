@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { signInWithMicrosoft } from "@/lib/auth-client";
 
 function LoginForm() {
