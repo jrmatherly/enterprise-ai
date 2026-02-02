@@ -1,7 +1,7 @@
 # Implementation Plan — Enterprise AI Platform MVP
 
 **Created:** 2026-01-31
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-02 (Session 2)
 **Status:** Phase 2 Complete, Infrastructure Hardened, Phase 3 Ready
 
 ---
@@ -261,6 +261,7 @@ Store conversation history in database:
 | Streaming | ✅ | POST to `/api/v1/chat/stream` |
 | Auth (Dev) | ✅ | Header: `X-Dev-Bypass: true` |
 | Auth (SSO) | ✅ | Microsoft EntraID via better-auth |
+| Auth (JWT) | ✅ | JWKS verification between frontend/backend |
 | SSO Sessions | ✅ | Cookie forwarding via API proxy |
 | Rate Limiting | ✅ | TPM + RPM with 429 responses |
 | RBAC | ✅ | Permission-based route protection |
@@ -337,6 +338,21 @@ Store conversation history in database:
 - [x] Backend checks: ruff lint, mypy typecheck, pytest
 - [x] Frontend checks: biome lint, tsc typecheck
 - [x] Hook validation via `hk run check`
+- [x] Env file sync validation (`env-check` job)
+
+### JWT Authentication ✅
+- [x] Added better-auth JWT plugin to frontend
+- [x] Frontend exposes `/api/auth/jwks` for public key verification
+- [x] Frontend exposes `/api/auth/token` for getting JWTs
+- [x] Backend verifies JWTs via JWKS (no shared secrets needed)
+- [x] Added `jwks` table migration for key storage
+- [x] Proper separation: `BETTER_AUTH_*` (frontend) vs `NEXTAUTH_*` (Langfuse)
+
+### Environment File Sync ✅
+- [x] Added `mise run env:check` task
+- [x] Added `scripts/check-env-sync.sh` validation script
+- [x] CI job fails if `.env` and `.env.example` have different variables
+- [x] Backend: 64 variables | Frontend: 8 variables
 
 ---
 
@@ -362,6 +378,7 @@ mise run test                 # Run test suite
 mise run check                # Lint + format + typecheck
 mise run git:hooks:check      # Run all hook checks manually
 mise run git:hooks:fix        # Auto-fix hook issues
+mise run env:check            # Verify env files are in sync
 ```
 
 ---
