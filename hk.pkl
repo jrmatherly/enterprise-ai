@@ -94,7 +94,7 @@ hooks {
     ["commit-msg"] {
         steps {
             ["conventional-commit"] {
-                check = "hk util check-conventional-commit $1"
+                check = "hk util check-conventional-commit {{commit_msg_file}}"
             }
         }
     }
