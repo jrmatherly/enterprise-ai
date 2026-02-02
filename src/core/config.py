@@ -147,6 +147,11 @@ class Settings(BaseSettings):
         return ""
 
     # ============================================
+    # Better Auth (Frontend Session Management)
+    # ============================================
+    better_auth_url: str = "http://localhost:3001"  # Frontend URL for JWKS
+
+    # ============================================
     # Rate Limiting
     # ============================================
     rate_limit_tpm: int = 100000  # Tokens per minute

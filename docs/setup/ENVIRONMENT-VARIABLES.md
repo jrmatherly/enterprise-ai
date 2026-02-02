@@ -180,6 +180,12 @@ These variables are used by the Next.js frontend.
 
 > **Note:** `BETTER_AUTH_SECRET` is separate from Langfuse's `NEXTAUTH_SECRET`. Both should be set in `dev/.env`.
 
+The frontend exposes two endpoints for backend JWT verification:
+- `/api/auth/jwks` — Public keys for verifying JWTs
+- `/api/auth/token` — Get a JWT for the current session
+
+The backend uses JWKS to verify JWTs without needing shared secrets.
+
 ### Microsoft Entra ID
 
 | Variable | Default | Required | Description |

@@ -89,6 +89,10 @@ services:
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
       AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://localhost:8000/auth/callback}
 
+      # Better Auth (for JWT validation via JWKS)
+      # In Docker, use internal network name; externally use localhost:3001
+      BETTER_AUTH_URL: http://frontend:3001
+
       # App settings
       APP_NAME: "Enterprise AI Platform"
       ENVIRONMENT: ${ENVIRONMENT:-development}

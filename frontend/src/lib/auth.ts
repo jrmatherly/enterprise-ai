@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { genericOAuth } from "better-auth/plugins";
+import { bearer, jwt } from "better-auth/plugins";
 import { Pool } from "pg";
 
 /**
@@ -8,6 +8,9 @@ import { Pool } from "pg";
  *
  * Uses Microsoft EntraID for enterprise SSO authentication.
  * Database tables are managed by better-auth in the same PostgreSQL instance.
+ *
+ * JWT plugin enables the backend (FastAPI) to verify sessions using standard
+ * JWKS without needing shared secrets or database access.
  */
 export const auth = betterAuth({
   // Database connection - uses same PostgreSQL as backend
@@ -62,18 +65,19 @@ export const auth = betterAuth({
     // Handle cookies in Next.js server actions
     nextCookies(),
 
-    // Generic OAuth for additional enterprise providers if needed
-    genericOAuth({
-      config: [
-        // Microsoft EntraID via generic OAuth (alternative to socialProviders)
-        // Uncomment if you need more control over the OIDC flow
-        // microsoftEntraId({
-        //   clientId: process.env.AZURE_CLIENT_ID!,
-        //   clientSecret: process.env.AZURE_CLIENT_SECRET!,
-        //   tenantId: process.env.AZURE_TENANT_ID!,
-        // }),
-      ],
+    // JWT plugin - enables backend verification via JWKS
+    // Backend can verify tokens at /api/auth/jwks without shared secrets
+    jwt({
+      jwt: {
+        issuer: process.env.BETTER_AUTH_URL || "http://localhost:3001",
+        audience: process.env.BETTER_AUTH_URL || "http://localhost:3001",
+        expirationTime: "15m", // Short-lived JWTs for security
+      },
     }),
+
+    // Bearer plugin - allows API authentication via Authorization header
+    // Useful for backend-to-frontend API calls
+    bearer(),
   ],
 
   // Advanced configuration
