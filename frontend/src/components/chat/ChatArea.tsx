@@ -18,12 +18,12 @@ export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
     onSessionCreated,
   });
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or streaming updates
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, []);
+  }, [messages, streamingContent]);
 
   const handleSend = (content: string, knowledgeBaseIds?: string[]) => {
     if (content.trim() && !isStreaming && !isLoadingHistory) {

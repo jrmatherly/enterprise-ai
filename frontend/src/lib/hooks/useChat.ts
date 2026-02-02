@@ -29,10 +29,21 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const queryClient = useQueryClient();
 
+  // Track if we just created a new session (to avoid reloading and losing sources)
+  const [justCreatedSession, setJustCreatedSession] = useState(false);
+
   // Load session history when sessionId changes
   useEffect(() => {
     if (!sessionId) {
       setMessages([]);
+      setJustCreatedSession(false);
+      return;
+    }
+
+    // Skip loading history if we just created this session
+    // (we already have the messages with sources from streaming)
+    if (justCreatedSession) {
+      setJustCreatedSession(false);
       return;
     }
 
@@ -62,7 +73,7 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
     };
 
     loadHistory();
-  }, [sessionId]);
+  }, [sessionId, justCreatedSession]);
 
   const sendMessage = useCallback(
     async (content: string, knowledgeBaseIds?: string[]) => {
@@ -125,6 +136,9 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
 
             // Notify parent of new session (with title if generated)
             if (newSessionId && !sessionId) {
+              // Mark that we just created this session so we don't reload
+              // and lose the sources from the streaming response
+              setJustCreatedSession(true);
               onSessionCreated(newSessionId, chunk.title);
             }
 
