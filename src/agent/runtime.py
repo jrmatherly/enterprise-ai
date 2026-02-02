@@ -38,6 +38,7 @@ class ChatContext:
     trace_id: str
     knowledge_base_ids: list[str] = field(default_factory=list)
     retrieved_context: list[dict] = field(default_factory=list)
+    kb_instructions: str = ""
 
 
 @dataclass
@@ -132,7 +133,7 @@ class AgentRuntime:
         return client, region
 
     def _build_system_prompt(self, context: ChatContext) -> str:
-        """Build the system prompt with RAG context."""
+        """Build the system prompt with RAG context and KB instructions."""
         base_prompt = """You are an intelligent AI assistant for an enterprise organization.
 You help users with their questions by providing accurate, helpful, and professional responses.
 
@@ -142,6 +143,13 @@ Key behaviors:
 - If you don't know something, say so
 - Follow organizational policies and guidelines
 - Protect sensitive information"""
+
+        # Add knowledge base custom instructions if provided
+        if context.kb_instructions:
+            base_prompt += f"""
+
+## Knowledge Base Instructions
+{context.kb_instructions}"""
 
         # Add retrieved context if available
         if context.retrieved_context:

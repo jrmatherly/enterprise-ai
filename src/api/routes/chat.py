@@ -192,7 +192,6 @@ async def chat(
 
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
-    rag_context_text = ""
     kb_instructions = ""
     if body.knowledge_base_ids:
         try:
@@ -219,9 +218,14 @@ async def chat(
                 score_threshold=0.2,
             )
             retrieved_context = [
-                {"text": c.text, "score": c.score, "document_id": c.document_id} for c in chunks
+                {
+                    "filename": c.metadata.get("filename", "Unknown"),
+                    "content": c.text,
+                    "score": c.score,
+                    "document_id": c.document_id,
+                }
+                for c in chunks
             ]
-            rag_context_text = retriever.format_context(chunks)
         except Exception as e:
             # Log but continue without RAG
             import logging
@@ -236,6 +240,7 @@ async def chat(
         trace_id=trace_id,
         knowledge_base_ids=body.knowledge_base_ids or [],
         retrieved_context=retrieved_context,
+        kb_instructions=kb_instructions,
     )
 
     # Build message history
@@ -250,27 +255,6 @@ async def chat(
         recent_messages = await message_repo.get_recent_messages(session.id, limit=20)
         for msg in recent_messages:
             messages.append(ChatMessage(role=msg.role.value, content=msg.content))
-
-    # Add RAG context as system message if available
-    if rag_context_text:
-        rag_parts = [
-            "Use the following retrieved context to answer the user's question. "
-            "IMPORTANT CITATION RULES:\n"
-            "1. Cite sources inline using [1], [2], etc. when using information from the context\n"
-            "2. At the END of your response, include a 'Sources:' section listing each cited source\n"
-            "3. Format each source as: [N] Document Name (Section X)\n"
-            "4. Only list sources you actually cited in your response\n"
-            "If the context doesn't contain relevant information, say so clearly."
-        ]
-
-        # Add KB-specific instructions if provided
-        if kb_instructions:
-            rag_parts.append(f"\nKnowledge Base Instructions:\n{kb_instructions}")
-
-        rag_parts.append(f"\nRetrieved Context:\n{rag_context_text}")
-
-        rag_system_msg = "\n".join(rag_parts)
-        messages.append(ChatMessage(role="system", content=rag_system_msg))
 
     # Add current user message
     messages.append(ChatMessage(role="user", content=body.message))
@@ -429,7 +413,6 @@ async def chat_stream(
 
     # Perform RAG retrieval if knowledge bases specified
     retrieved_context = []
-    rag_context_text = ""
     kb_instructions = ""
     if body.knowledge_base_ids:
         try:
@@ -456,9 +439,14 @@ async def chat_stream(
                 score_threshold=0.2,
             )
             retrieved_context = [
-                {"text": c.text, "score": c.score, "document_id": c.document_id} for c in chunks
+                {
+                    "filename": c.metadata.get("filename", "Unknown"),
+                    "content": c.text,
+                    "score": c.score,
+                    "document_id": c.document_id,
+                }
+                for c in chunks
             ]
-            rag_context_text = retriever.format_context(chunks)
         except Exception as e:
             # Log but continue without RAG
             import logging
@@ -473,6 +461,7 @@ async def chat_stream(
         trace_id=trace_id,
         knowledge_base_ids=body.knowledge_base_ids or [],
         retrieved_context=retrieved_context,
+        kb_instructions=kb_instructions,
     )
 
     # Build message history
@@ -485,27 +474,6 @@ async def chat_stream(
         recent_messages = await message_repo.get_recent_messages(session.id, limit=20)
         for msg in recent_messages:
             messages.append(ChatMessage(role=msg.role.value, content=msg.content))
-
-    # Add RAG context as system message if available
-    if rag_context_text:
-        rag_parts = [
-            "Use the following retrieved context to answer the user's question. "
-            "IMPORTANT CITATION RULES:\n"
-            "1. Cite sources inline using [1], [2], etc. when using information from the context\n"
-            "2. At the END of your response, include a 'Sources:' section listing each cited source\n"
-            "3. Format each source as: [N] Document Name (Section X)\n"
-            "4. Only list sources you actually cited in your response\n"
-            "If the context doesn't contain relevant information, say so clearly."
-        ]
-
-        # Add KB-specific instructions if provided
-        if kb_instructions:
-            rag_parts.append(f"\nKnowledge Base Instructions:\n{kb_instructions}")
-
-        rag_parts.append(f"\nRetrieved Context:\n{rag_context_text}")
-
-        rag_system_msg = "\n".join(rag_parts)
-        messages.insert(0, ChatMessage(role="system", content=rag_system_msg))
 
     messages.append(ChatMessage(role="user", content=body.message))
 
@@ -569,6 +537,9 @@ async def chat_stream(
             yield "data: [DONE]\n\n"
 
         except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).exception(f"Error in chat_stream: {e}")
             error_data = {"error": str(e)}
             yield f"data: {json.dumps(error_data)}\n\n"
             yield "data: [DONE]\n\n"

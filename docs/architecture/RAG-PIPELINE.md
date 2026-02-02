@@ -66,6 +66,7 @@ Orchestrates embedding generation and vector search with ACL filtering.
 **`text-embedding-3-large` produces lower similarity scores than other models.**
 
 | Model | Typical Score Range | Recommended Threshold |
+
 |-------|--------------------|-----------------------|
 | `text-embedding-3-large` | 0.20 - 0.40 | **0.2** |
 | `text-embedding-3-small` | 0.30 - 0.50 | 0.3 |
@@ -93,6 +94,68 @@ Every chunk stores ACL metadata for filtering:
 ```
 tenant_id = current_tenant
 AND (user_id IN acl_users OR any(group_ids) IN acl_groups)
+```
+
+## Knowledge Base Custom Instructions
+
+Each knowledge base can have a custom `system_prompt` that provides domain-specific instructions to the LLM when that knowledge base is queried.
+
+### How It Works
+
+1. **KB Creation/Update:** Admins set `system_prompt` via the Knowledge Base API
+2. **Chat Request:** User includes `knowledge_base_ids` in their chat request
+3. **Prompt Assembly:** The runtime fetches and combines all KB system prompts
+4. **System Prompt Injection:** Combined instructions are injected into the system prompt
+
+### System Prompt Structure
+
+The final system prompt is assembled in `AgentRuntime._build_system_prompt()`:
+
+```
+[Base Enterprise Prompt]
+
+## Knowledge Base Instructions
+[Combined KB system_prompts - if any knowledge bases have custom instructions]
+
+## Retrieved Context
+[RAG context with source citations - if documents were retrieved]
+```
+
+### Example KB System Prompt
+
+```json
+{
+  "name": "HR Policies",
+  "system_prompt": "When answering questions about HR policies:\n- Always cite the specific policy section\n- Include effective dates when relevant\n- Refer users to HR for sensitive topics\n- Never disclose individual employee information"
+}
+```
+
+### Multiple Knowledge Bases
+
+When a user queries multiple KBs, their system prompts are concatenated with double newlines:
+
+```python
+kb_instructions = "\n\n".join(prompts)  # From all selected KBs
+```
+
+### API Reference
+
+**Create KB with instructions:**
+```bash
+POST /api/knowledge-bases
+{
+  "name": "Legal Docs",
+  "description": "Legal agreements and contracts",
+  "system_prompt": "Always include legal disclaimers..."
+}
+```
+
+**Update KB instructions:**
+```bash
+PATCH /api/knowledge-bases/{id}
+{
+  "system_prompt": "Updated instructions..."
+}
 ```
 
 ## Citation Support

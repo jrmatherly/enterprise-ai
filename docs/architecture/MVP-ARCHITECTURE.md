@@ -166,6 +166,14 @@ The platform should be **API-first** from day one. Slack and Web UI are clients 
 - Hybrid search (semantic + keyword)
 - Kubernetes-native
 
+**Features:**
+- Per-KB custom instructions (`system_prompt`) injected into LLM prompts
+- Document chunking with citation metadata
+- ACL-based filtering at query time
+- Semantic caching for repeated queries
+
+**See Also:** [RAG Pipeline Architecture](RAG-PIPELINE.md) for implementation details.
+
 **Access Control Model:**
 ```
 Document Chunk Metadata:
@@ -614,27 +622,27 @@ from datetime import datetime
 
 class TokenRateLimiter:
     """Per-tenant token rate limiting with Redis."""
-    
+
     def __init__(self, redis: Redis, default_tpm: int = 100000):
         self.redis = redis
         self.default_tpm = default_tpm
-    
+
     async def check_and_consume(self, tenant_id: str, tokens: int) -> tuple[bool, int]:
         """Check if tokens can be consumed. Returns (allowed, remaining)."""
         minute_key = f"tpm:{tenant_id}:{datetime.utcnow().strftime('%Y%m%d%H%M')}"
-        
+
         # Atomic increment
         pipe = self.redis.pipeline()
         pipe.incrby(minute_key, tokens)
         pipe.expire(minute_key, 120)  # 2 min TTL for safety
         current, _ = await pipe.execute()
-        
+
         limit = await self.get_tenant_limit(tenant_id)
         remaining = max(0, limit - current)
         allowed = current <= limit
-        
+
         return allowed, remaining
-    
+
     async def get_tenant_limit(self, tenant_id: str) -> int:
         """Get TPM limit from tenant config."""
         limit = await self.redis.hget("tenant:limits", tenant_id)
@@ -655,15 +663,15 @@ import json
 
 class SemanticCache:
     """Cache LLM responses based on semantic similarity of prompts."""
-    
-    def __init__(self, qdrant: QdrantClient, redis: Redis, 
+
+    def __init__(self, qdrant: QdrantClient, redis: Redis,
                  collection: str = "prompt_cache", threshold: float = 0.95):
         self.qdrant = qdrant
         self.redis = redis
         self.collection = collection
         self.threshold = threshold
-    
-    async def get(self, prompt: str, embedding: list[float], 
+
+    async def get(self, prompt: str, embedding: list[float],
                   tenant_id: str) -> dict | None:
         """Look up cached response by semantic similarity."""
         results = await self.qdrant.search(
@@ -673,19 +681,19 @@ class SemanticCache:
             limit=1,
             score_threshold=self.threshold
         )
-        
+
         if results and results[0].score >= self.threshold:
             cache_key = results[0].payload["cache_key"]
             cached = await self.redis.get(f"llm_cache:{cache_key}")
             if cached:
                 return json.loads(cached)
         return None
-    
-    async def set(self, prompt: str, embedding: list[float], 
+
+    async def set(self, prompt: str, embedding: list[float],
                   response: dict, tenant_id: str, ttl: int = 3600):
         """Cache response with embedding for semantic lookup."""
         cache_key = hashlib.sha256(prompt.encode()).hexdigest()[:16]
-        
+
         # Store embedding in Qdrant for similarity search
         await self.qdrant.upsert(
             collection_name=self.collection,
@@ -695,7 +703,7 @@ class SemanticCache:
                 "payload": {"cache_key": cache_key, "tenant_id": tenant_id}
             }]
         )
-        
+
         # Store response in Redis
         await self.redis.setex(f"llm_cache:{cache_key}", ttl, json.dumps(response))
 ```
@@ -727,11 +735,11 @@ class FixedSizeChunker(DocumentChunker):
     def __init__(self, chunk_size: int = 512, overlap: int = 128):
         self.chunk_size = chunk_size
         self.overlap = overlap
-    
+
     async def chunk(self, content: bytes, content_type: str) -> list[dict]:
         text = await self._extract_text(content, content_type)
         tokens = self._tokenize(text)
-        
+
         chunks = []
         for i in range(0, len(tokens), self.chunk_size - self.overlap):
             chunk_tokens = tokens[i:i + self.chunk_size]
@@ -802,11 +810,11 @@ def require_permission(permission: Permission):
         async def wrapper(*args, **kwargs):
             user = get_current_user()  # From request context
             user_roles = user.get("roles", [])
-            
+
             for role in user_roles:
                 if permission in ROLE_PERMISSIONS.get(AppRole(role), []):
                     return await func(*args, **kwargs)
-            
+
             raise PermissionDenied(f"Missing permission: {permission}")
         return wrapper
     return decorator
@@ -830,7 +838,7 @@ REQUEST_LATENCY = Histogram('ai_request_seconds', 'Request latency', ['tenant_id
 
 class UsageTracker:
     """Track LLM usage for FinOps and cost attribution."""
-    
+
     def __init__(self, langfuse: Langfuse):
         self.langfuse = langfuse
         self.cost_per_token = {
@@ -838,22 +846,22 @@ class UsageTracker:
             "gpt-4o-mini": {"input": 0.00015/1000, "output": 0.0006/1000},
             "claude-3-5-sonnet": {"input": 0.003/1000, "output": 0.015/1000},
         }
-    
-    async def track(self, tenant_id: str, model: str, 
+
+    async def track(self, tenant_id: str, model: str,
                     prompt_tokens: int, completion_tokens: int,
                     latency_ms: float, trace_id: str):
         """Record usage metrics."""
-        
+
         # Calculate cost
         costs = self.cost_per_token.get(model, {"input": 0, "output": 0})
         cost_usd = (prompt_tokens * costs["input"]) + (completion_tokens * costs["output"])
-        
+
         # Prometheus metrics
         TOKENS_TOTAL.labels(tenant_id, model, 'input').inc(prompt_tokens)
         TOKENS_TOTAL.labels(tenant_id, model, 'output').inc(completion_tokens)
         COST_TOTAL.labels(tenant_id, model).inc(cost_usd)
         REQUEST_LATENCY.labels(tenant_id, model).observe(latency_ms / 1000)
-        
+
         # Langfuse trace for detailed analytics
         self.langfuse.generation(
             trace_id=trace_id,
