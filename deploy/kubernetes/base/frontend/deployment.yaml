@@ -24,7 +24,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: frontend
-          image: ghcr.io/jrmatherly/enterprise-ai-frontend:latest
+          image: ghcr.io/your-org/enterprise-ai-frontend:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

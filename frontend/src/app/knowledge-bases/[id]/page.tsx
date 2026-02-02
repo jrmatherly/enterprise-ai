@@ -380,7 +380,7 @@ function KBSettingsSection({ kb }: { kb: { id: string; system_prompt: string | n
 								Custom Instructions
 							</label>
 							<a
-								href="https://github.com/jrmatherly/enterprise-ai/blob/main/docs/reference/KB-CUSTOM-INSTRUCTIONS-TEMPLATE.md"
+								href="https://github.com/your-org/enterprise-ai/blob/main/docs/reference/KB-CUSTOM-INSTRUCTIONS-TEMPLATE.md"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"

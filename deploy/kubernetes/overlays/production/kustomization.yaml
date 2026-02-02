@@ -15,9 +15,9 @@ commonLabels:
 
 # Image tags for production
 images:
-  - name: ghcr.io/jrmatherly/enterprise-ai-backend
+  - name: ghcr.io/your-org/enterprise-ai-backend
     newTag: "1.0.0"
-  - name: ghcr.io/jrmatherly/enterprise-ai-frontend
+  - name: ghcr.io/your-org/enterprise-ai-frontend
     newTag: "1.0.0"
 
 # Patches for production

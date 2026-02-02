@@ -169,7 +169,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jrmatherly/enterprise-ai.git
+    repoURL: https://github.com/your-org/enterprise-ai.git
     targetRevision: main
     path: deploy/helm/enterprise-ai-platform
     helm:

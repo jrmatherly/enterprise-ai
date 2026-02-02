@@ -25,7 +25,7 @@ backend:
 
   image:
     # -- Backend image repository
-    repository: ghcr.io/jrmatherly/enterprise-ai-backend
+    repository: ghcr.io/your-org/enterprise-ai-backend
     # -- Image pull policy
     pullPolicy: IfNotPresent
     # -- Image tag (defaults to Chart.appVersion)
@@ -138,7 +138,7 @@ frontend:
 
   image:
     # -- Frontend image repository
-    repository: ghcr.io/jrmatherly/enterprise-ai-frontend
+    repository: ghcr.io/your-org/enterprise-ai-frontend
     # -- Image pull policy
     pullPolicy: IfNotPresent
     # -- Image tag (defaults to Chart.appVersion)

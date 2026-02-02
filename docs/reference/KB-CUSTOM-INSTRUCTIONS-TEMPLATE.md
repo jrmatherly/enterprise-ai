@@ -64,7 +64,7 @@ By the end of your response, the user should:
 ### Example 1: Store Operations Assistant
 
 ```
-You are Store Operations, an AI assistant created by Aaron's. Your job is to assist employees in answering questions about store policies, procedures, and products.
+You are Store Operations, an AI assistant for Acme Retail. Your job is to assist employees in answering questions about store policies, procedures, and products.
 
 <principles>
 ## Core Behaviors
@@ -166,18 +166,18 @@ Cite sources from <retrieved_context> using the format: [Source: filename]
 
 Enable **Grounded Mode** (`grounded_only: true`) when you want to enforce strict knowledge base boundaries:
 
-### When to Enable Grounding:
+### When to Enable Grounding
 - ✅ Policy/compliance knowledge bases (employees need exact policy language)
 - ✅ Legal or regulatory documents (no room for interpretation)
 - ✅ Product specifications (accuracy is critical)
 - ✅ Training materials (must match official content)
 
-### When Grounding May Not Be Needed:
+### When Grounding May Not Be Needed
 - General assistant use cases
 - Creative or brainstorming tasks
 - Knowledge bases supplementing general knowledge
 
-### What Grounding Does:
+### What Grounding Does
 When enabled, the AI receives this additional constraint:
 ```
 CRITICAL CONSTRAINT - GROUNDED RESPONSES ONLY:
@@ -191,13 +191,13 @@ You must ONLY respond using information from the <retrieved_context> section.
 
 ## Best Practices
 
-### ✅ Do:
+### ✅ Do
 - Be specific about your assistant's persona and purpose
 - Define clear response formats and citation requirements
 - List domain-specific terms and acronyms
 - Specify what the assistant should NOT do
 
-### ❌ Don't:
+### ❌ Don't
 - Write vague instructions like "be helpful"
 - Reference external attachments that don't exist
 - Contradict yourself with conflicting rules
@@ -207,7 +207,7 @@ You must ONLY respond using information from the <retrieved_context> section.
 
 ## API Usage
 
-### Create KB with Custom Instructions:
+### Create KB with Custom Instructions
 ```bash
 POST /api/v1/knowledge-bases
 {
@@ -218,7 +218,7 @@ POST /api/v1/knowledge-bases
 }
 ```
 
-### Update Existing KB:
+### Update Existing KB
 ```bash
 PATCH /api/v1/knowledge-bases/{id}
 {

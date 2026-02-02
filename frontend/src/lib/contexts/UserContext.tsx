@@ -46,7 +46,7 @@ export function useUser() {
 /**
  * Get initials from a name
  * Handles both "First Last" and "Last, First" formats
- * e.g., "Jason Matherly" -> "JM", "Matherly, Jason" -> "JM"
+ * e.g., "John Smith" -> "JS", "Smith, John" -> "JS"
  */
 export function getInitials(name: string): string {
   if (!name) return "U";

@@ -25,10 +25,10 @@ keywords:
   - azure
   - openai
 
-home: https://github.com/jrmatherly/enterprise-ai
+home: https://github.com/your-org/enterprise-ai
 
 sources:
-  - https://github.com/jrmatherly/enterprise-ai
+  - https://github.com/your-org/enterprise-ai
 
 maintainers:
   - name: Jason Matherly
