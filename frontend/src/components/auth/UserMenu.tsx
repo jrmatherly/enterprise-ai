@@ -10,7 +10,13 @@ import { cn } from "@/lib/utils/cn";
 export function UserMenu() {
   const { data: session, isPending } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Track mount state to avoid hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -24,7 +30,8 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (isPending) {
+  // Show loading state during SSR and initial hydration to prevent mismatch
+  if (!isMounted || isPending) {
     return (
       <div className="flex size-8 items-center justify-center rounded-full bg-neutral-700">
         <div className="size-4 animate-spin rounded-full border-2 border-neutral-400 border-t-transparent" />
