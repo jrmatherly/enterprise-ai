@@ -95,11 +95,14 @@ frontend/
 │   │   │   ├── dialog.tsx
 │   │   │   └── ...
 │   │   ├── chat/                 # Chat-specific components
-│   │   │   ├── ChatInterface.tsx
-│   │   │   ├── MessageBubble.tsx
-│   │   │   ├── MessageInput.tsx
-│   │   │   ├── StreamingMessage.tsx
-│   │   │   └── SourceCitation.tsx
+│   │   │   ├── ChatArea.tsx          # Main chat container (manages KB state)
+│   │   │   ├── MessageBubble.tsx     # Message display with sources
+│   │   │   ├── MessageInput.tsx      # Input with KB selector
+│   │   │   ├── StreamingMessage.tsx  # Streaming response display
+│   │   │   ├── SourceBadge.tsx       # Clickable source with hover popover
+│   │   │   ├── SourcesList.tsx       # Container for source badges
+│   │   │   ├── FollowUpQuestions.tsx # Clickable follow-up buttons
+│   │   │   └── KnowledgeBaseSelector.tsx  # KB picker dropdown
 │   │   ├── knowledge/            # Knowledge base components
 │   │   │   ├── KnowledgeBaseCard.tsx
 │   │   │   ├── DocumentUploader.tsx
@@ -179,20 +182,46 @@ frontend/
 │  • Q3 Targe..│                                                   │
 │  • Budget ...|   ┌──────────────────────────────────────────┐   │
 │              │   │ 🤖 Based on the Finance KB, your Q3      │   │
-│  Yesterday   │   │ revenue target is $4.2M, which is...     │   │
-│  • Policy ...|   │                                          │   │
-│  • HR Ques...|   │ 📎 Sources:                              │   │
-│              │   │   • Q3-Targets.xlsx (Finance KB)         │   │
-│              │   │   • Revenue-Plan.pdf (Finance KB)        │   │
+│  Yesterday   │   │ revenue target is $4.2M, which is a 15%  │   │
+│  • Policy ...|   │ increase from Q2...                      │   │
+│  • HR Ques...|   │                                          │   │
+│              │   │ [1] Q3-Targets.xlsx  [2] Revenue-Plan.pdf│ ← Source badges
+│              │   │                                          │   │
+│              │   │ › What factors drove the target increase?│ ← Follow-up questions
+│              │   │ › How does this compare to last year?    │   │
 │              │   └──────────────────────────────────────────┘   │
 │              │                                                   │
 │              │   ┌──────────────────────────────────────────┐   │
-│              │   │ Type a message...          [📎] [Send ➤] │   │
+│              │   │ [Finance ×]  Type a message...    [Send] │   │
+│              │   │ [📚 KB ▼]  [📎 Attach]                   │   │
 │              │   └──────────────────────────────────────────┘   │
-│              │                                                   │
-│  ─────────── │   Knowledge Bases: [Finance ▼] [HR ▼] [+]        │
+│  ─────────── │                                                   │
 │  [⚙ Settings]│                                                   │
 └──────────────┴──────────────────────────────────────────────────┘
+```
+
+**Message Layout:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Response text content...                                       │
+│  - Bullet points and formatting preserved                       │
+│  - Markdown rendered (headings, code, links)                    │
+│                                                                 │
+│  [1] Document.pdf, Page 5  [2] Policy.docx  [3] Guide.pdf      │  ← SourcesList
+│          ↑                                                      │
+│    Hover shows popover:                                         │
+│    ┌─────────────────────────────┐                              │
+│    │ Document.pdf                │                              │
+│    │ Page 5                      │                              │
+│    │ "Excerpt from the document  │                              │
+│    │ showing relevant text..."   │                              │
+│    │ Relevance: 34%              │                              │
+│    └─────────────────────────────┘                              │
+│                                                                 │
+│  › Follow-up question one?                                      │  ← FollowUpQuestions
+│  › Follow-up question two?                                      │
+│  › Follow-up question three?                                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **Features:**
@@ -323,55 +352,154 @@ export async function apiClient<T>(
 
 ```typescript
 // lib/hooks/useChat.ts
-export function useChat(sessionId?: string) {
+export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  
+  // Track newly created sessions to avoid reloading and losing sources
+  const justCreatedSessionId = useRef<string | null>(null);
 
-  const sendMessage = useCallback(async (content: string) => {
-    // Add user message optimistically
-    const userMessage = { role: 'user', content };
-    setMessages(prev => [...prev, userMessage]);
-    setIsStreaming(true);
-
-    try {
-      const response = await fetch('/api/v1/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, session_id: sessionId }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = '';
-
-      while (true) {
-        const { done, value } = await reader!.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
-            if (data.content) {
-              assistantMessage += data.content;
-              setMessages(prev => [
-                ...prev.slice(0, -1),
-                { role: 'assistant', content: assistantMessage },
-              ]);
-            }
-          }
-        }
-      }
-    } finally {
-      setIsStreaming(false);
+  // Load session history when sessionId changes
+  useEffect(() => {
+    if (!sessionId) {
+      setMessages([]);
+      return;
     }
+    // Skip reload if we just created this session (preserves sources from stream)
+    if (justCreatedSessionId.current === sessionId) {
+      justCreatedSessionId.current = null;
+      return;
+    }
+    loadHistory();
   }, [sessionId]);
 
-  return { messages, sendMessage, isStreaming };
+  const sendMessage = useCallback(async (content: string, knowledgeBaseIds?: string[]) => {
+    // Add user message optimistically
+    setMessages(prev => [...prev, { role: 'user', content }]);
+    setIsStreaming(true);
+
+    let messageSources: Source[] | undefined;
+
+    for await (const chunk of streamChat(content, sessionId, knowledgeBaseIds)) {
+      if (chunk.content) {
+        setStreamingContent(prev => (prev ?? '') + chunk.content);
+      }
+      
+      // Capture sources from the final chunk
+      if (chunk.sources) {
+        messageSources = chunk.sources;
+      }
+
+      if (chunk.done) {
+        // Add completed message WITH sources
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: fullContent,
+          sources: messageSources,  // Sources attached to message
+        }]);
+        
+        if (chunk.session_id && !sessionId) {
+          justCreatedSessionId.current = chunk.session_id;
+          onSessionCreated(chunk.session_id, chunk.title);
+        }
+      }
+    }
+  }, [sessionId, onSessionCreated]);
+
+  return { messages, sendMessage, isStreaming, streamingContent };
 }
 ```
+
+### Knowledge Base State Management
+
+Knowledge base selection is lifted to `ChatArea` for two reasons:
+1. **Follow-up questions** need to use the same KBs as the original query
+2. **State persistence** across message input interactions
+
+```typescript
+// components/chat/ChatArea.tsx
+export function ChatArea({ sessionId, onSessionCreated }: ChatAreaProps) {
+  // KB selection state lifted here (not in MessageInput)
+  const [selectedKBIds, setSelectedKBIds] = useState<string[]>([]);
+  const { messages, sendMessage, ... } = useChat({ sessionId, onSessionCreated });
+
+  // Reset KB selection when starting a new chat
+  useEffect(() => {
+    if (!sessionId) setSelectedKBIds([]);
+  }, [sessionId]);
+
+  const handleSend = (content: string, knowledgeBaseIds?: string[]) => {
+    // Use provided KBs (from MessageInput) or current selection (for follow-ups)
+    const kbsToUse = knowledgeBaseIds ?? (selectedKBIds.length > 0 ? selectedKBIds : undefined);
+    sendMessage(content, kbsToUse);
+  };
+
+  return (
+    <>
+      {messages.map(msg => (
+        <MessageBubble
+          message={msg}
+          onFollowUpClick={(question) => handleSend(question)}  // Uses selectedKBIds
+        />
+      ))}
+      <MessageInput
+        onSend={handleSend}
+        selectedKBIds={selectedKBIds}
+        onKBSelectionChange={setSelectedKBIds}
+      />
+    </>
+  );
+}
+```
+
+### Core TypeScript Types
+
+```typescript
+// lib/types.ts
+
+export interface Source {
+  ref: number;              // Citation reference number [1], [2], etc.
+  document_id: string;      // Document UUID
+  filename: string;         // Original filename
+  page: string | null;      // Page reference: "Page 5" or "Pages 5-7"
+  score: number;            // Relevance score (0-1)
+  excerpt: string;          // Text excerpt for hover preview (500 chars)
+}
+
+export interface Message {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp?: string;
+  sources?: Source[];       // Sources attached to assistant messages
+}
+
+export interface StreamChunk {
+  content?: string;         // Streaming text content
+  done?: boolean;           // Stream complete flag
+  error?: string;           // Error message if failed
+  session_id?: string;      // Session ID (on first chunk for new sessions)
+  title?: string;           // Auto-generated title for new sessions
+  sources?: Source[];       // Sources (in final chunk when done=true)
+}
+```
+
+### Chat Components
+
+**MessageBubble** displays a single message with:
+- Markdown-rendered content (follow-up markers stripped)
+- Source badges below assistant messages
+- Follow-up question buttons
+
+**SourceBadge** shows a clickable source reference with:
+- Reference number and filename
+- Hover popover with excerpt and relevance score
+- Uses React Portal to escape parent overflow constraints
+
+**FollowUpQuestions** renders parsed follow-up questions as:
+- Clickable buttons that send the question as a new message
+- Preserves the currently selected knowledge bases
 
 ---
 

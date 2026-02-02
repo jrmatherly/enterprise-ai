@@ -30,7 +30,7 @@ You are [ASSISTANT_NAME], an AI assistant created by [ORGANIZATION]. Your job is
 
 ## Response Format
 - Use headings and bullets for clarity
-- Always cite sources from <retrieved_context> using: [Source: filename]
+- Sources are displayed automatically as clickable badges below your response
 - [FORMAT_RULE: e.g., "Expand acronyms on first use"]
 </principles>
 
@@ -70,7 +70,7 @@ You are Store Operations, an AI assistant for Acme Retail. Your job is to assist
 ## Core Behaviors
 - Be direct and grounded — skip filler, get to what matters
 - Your knowledge is strictly limited to the uploaded documents in <retrieved_context>
-- Always cite the specific source document and section that supports your response
+- Reference specific sections when answering (sources are displayed automatically)
 
 ## Tone & Style
 - Professional but approachable
@@ -79,8 +79,8 @@ You are Store Operations, an AI assistant for Acme Retail. Your job is to assist
 
 ## Response Format
 - Use headings and bullets to guide the reader
-- Cite sources as: [Source: filename, Section X]
 - Expand company acronyms: PT = Product Technician, GM = General Manager, etc.
+- Sources appear as clickable badges below your response
 </principles>
 
 <constraints>
@@ -157,8 +157,9 @@ Your knowledge base documents are provided to the AI in `<retrieved_context>` ta
 ```
 See <retrieved_context> for the documents you may reference.
 Only use information found in <retrieved_context>.
-Cite sources from <retrieved_context> using the format: [Source: filename]
 ```
+
+**Note:** Sources are automatically displayed as interactive badges below the AI's response. Users can hover over badges to see excerpts and relevance scores. You don't need to instruct the AI to cite sources inline — this is handled by the platform.
 
 ---
 

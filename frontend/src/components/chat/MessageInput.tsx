@@ -11,15 +11,22 @@ interface MessageInputProps {
   onSend: (message: string, knowledgeBaseIds?: string[]) => void;
   disabled?: boolean;
   placeholder?: string;
+  selectedKBIds?: string[];
+  onKBSelectionChange?: (ids: string[]) => void;
 }
 
 export function MessageInput({
   onSend,
   disabled,
   placeholder,
+  selectedKBIds: controlledKBIds,
+  onKBSelectionChange,
 }: MessageInputProps) {
   const [value, setValue] = useState("");
-  const [selectedKBIds, setSelectedKBIds] = useState<string[]>([]);
+  // Use controlled state if provided, otherwise manage internally
+  const [internalKBIds, setInternalKBIds] = useState<string[]>([]);
+  const selectedKBIds = controlledKBIds ?? internalKBIds;
+  const setSelectedKBIds = onKBSelectionChange ?? setInternalKBIds;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useCallback(() => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient, streamChat } from "@/lib/api/client";
 import type { Message, Source } from "@/lib/types";
 
@@ -29,21 +29,22 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const queryClient = useQueryClient();
 
-  // Track if we just created a new session (to avoid reloading and losing sources)
-  const [justCreatedSession, setJustCreatedSession] = useState(false);
+  // Track the session ID we just created (to avoid reloading and losing sources)
+  // Using a ref to avoid re-render loops in the effect
+  const justCreatedSessionId = useRef<string | null>(null);
 
   // Load session history when sessionId changes
   useEffect(() => {
     if (!sessionId) {
       setMessages([]);
-      setJustCreatedSession(false);
+      justCreatedSessionId.current = null;
       return;
     }
 
-    // Skip loading history if we just created this session
+    // Skip loading history if this is a session we just created
     // (we already have the messages with sources from streaming)
-    if (justCreatedSession) {
-      setJustCreatedSession(false);
+    if (justCreatedSessionId.current === sessionId) {
+      justCreatedSessionId.current = null;
       return;
     }
 
@@ -73,7 +74,7 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
     };
 
     loadHistory();
-  }, [sessionId, justCreatedSession]);
+  }, [sessionId]);
 
   const sendMessage = useCallback(
     async (content: string, knowledgeBaseIds?: string[]) => {
@@ -136,9 +137,8 @@ export function useChat({ sessionId, onSessionCreated }: UseChatOptions) {
 
             // Notify parent of new session (with title if generated)
             if (newSessionId && !sessionId) {
-              // Mark that we just created this session so we don't reload
-              // and lose the sources from the streaming response
-              setJustCreatedSession(true);
+              // Mark this session ID so we don't reload and lose sources
+              justCreatedSessionId.current = newSessionId;
               onSessionCreated(newSessionId, chunk.title);
             }
 

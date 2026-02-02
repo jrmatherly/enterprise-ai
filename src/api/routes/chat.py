@@ -538,6 +538,10 @@ async def chat_stream(
                     yield f"data: {json.dumps(event_data)}\n\n"
 
                 if chunk.finish_reason:
+                    print(
+                        f"[DEBUG] chunk.finish_reason={chunk.finish_reason}, retrieved_context has {len(retrieved_context)} items"
+                    )
+
                     # Store assistant message
                     await message_repo.create(
                         session_id=session.id,

@@ -201,23 +201,110 @@ See the **[Custom Instructions Template](../reference/KB-CUSTOM-INSTRUCTIONS-TEM
 - Best practices and common mistakes
 - How to reference `<retrieved_context>` in your instructions
 
-## Citation Support
+## Citation & Sources
 
-Retrieved chunks include source metadata for citations:
+The RAG pipeline provides rich source metadata for each retrieved chunk, enabling the frontend to display interactive source citations.
 
-**Context Format:**
+### Source Object Format
+
+Each source returned by the API includes:
+
+```json
+{
+  "ref": 1,                           // Citation reference number
+  "document_id": "uuid-string",       // Document UUID
+  "filename": "PolicyManual.pdf",     // Original filename
+  "page": "Pages 15-16",              // Extracted page reference (if available)
+  "score": 0.342,                     // Relevance score (0-1)
+  "excerpt": "First 500 chars..."     // Text excerpt for preview
+}
 ```
-[1] First chunk of retrieved text...
-[2] Second chunk of retrieved text...
 
----
-Sources:
-[1] Document.pdf (Section 15)
-[2] Document.pdf (Section 42)
+### Page Number Extraction
+
+Page numbers are automatically extracted from `[Page X]` markers in chunk content:
+
+```python
+def extract_pages(text: str) -> str | None:
+    """Extract page numbers from [Page X] markers."""
+    pattern = r"\[Page\s+(\d+)\]"
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    if matches:
+        pages = sorted({int(m) for m in matches})
+        if len(pages) == 1:
+            return f"Page {pages[0]}"
+        if pages == list(range(pages[0], pages[-1] + 1)):
+            return f"Pages {pages[0]}-{pages[-1]}"
+        return f"Pages {', '.join(str(p) for p in pages)}"
+    return None
 ```
 
-**System Prompt Instruction:**
-The LLM is instructed to cite sources using bracket notation `[1]`, `[2]`, etc.
+**Output Examples:**
+- Single page: `"Page 15"`
+- Consecutive range: `"Pages 15-17"`
+- Non-consecutive: `"Pages 15, 17, 22"`
+
+### Frontend Source Display
+
+Sources are displayed as clickable badges below each assistant message:
+
+```
+┌────────────────────────────────────────────────────┐
+│ Based on the employee handbook, the PTO policy...  │
+│                                                    │
+│ [1] PolicyManual.pdf  [2] HR-Guide.docx           │ ← Source badges
+│                                                    │
+│ › What are the blackout dates for PTO?            │ ← Follow-up questions
+│ › How do I request time off?                      │
+└────────────────────────────────────────────────────┘
+```
+
+**Hover Popover:** Shows excerpt and relevance score when hovering over a source badge.
+
+### System Prompt Approach
+
+The AI is NOT instructed to include inline citations in its response text. Instead:
+1. Sources are provided to the AI in `<retrieved_context>` tags
+2. The AI generates a natural response using the context
+3. Sources are displayed separately via the API's `sources` array
+4. Users can hover on source badges to see which content was used
+
+This approach avoids cluttering the response with citation markers while still providing full source traceability.
+
+## Follow-up Questions
+
+The AI generates contextual follow-up questions at the end of responses using parseable markers:
+
+### Marker Format
+
+```
+<<<FOLLOWUP>>>
+- Question one about the topic?
+- Question two for clarification?
+- Question three to explore further?
+<<<END_FOLLOWUP>>>
+```
+
+### Parsing
+
+The frontend parses these markers and renders them as clickable buttons:
+
+```typescript
+const followUpRegex = /<<<FOLLOWUP>>>([\s\S]*?)<<<END_FOLLOWUP>>>/;
+const match = content.match(followUpRegex);
+if (match) {
+  const questions = match[1]
+    .split('\n')
+    .map(q => q.replace(/^[-•]\s*/, '').trim())
+    .filter(q => q.length > 0);
+}
+```
+
+### Behavior
+
+- Clicking a follow-up question sends it as a new user message
+- The selected knowledge bases are preserved for follow-up queries
+- Follow-up questions are stripped from the displayed message content
 
 ## Document Ingestion
 
@@ -295,8 +382,11 @@ curl -X POST "http://localhost:6333/collections/{collection}/points/scroll" \
 
 ## Future Enhancements
 
-- [ ] Page number extraction for PDFs
+- [x] ~~Page number extraction for PDFs~~ ✓ Implemented
+- [x] ~~Source citations with excerpts~~ ✓ Implemented
+- [x] ~~Follow-up question generation~~ ✓ Implemented
 - [ ] Hybrid search (keyword + semantic)
 - [ ] Re-ranking with cross-encoder
 - [ ] Streaming chunk retrieval
 - [ ] Multi-modal embeddings (images, tables)
+- [ ] Document viewer integration (click source to view page)
