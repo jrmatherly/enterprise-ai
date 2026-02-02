@@ -30,6 +30,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false  # Don't export env vars to GITHUB_ENV (avoids NODE_OPTIONS error)
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -49,6 +50,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false
 
       - name: Install dependencies
         run: uv sync --frozen --all-extras
@@ -95,6 +97,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false
 
       - name: Install dependencies
         run: uv sync --frozen --all-extras
@@ -117,6 +120,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false
 
       - name: Install dependencies
         run: npm ci
@@ -139,6 +143,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false
 
       - name: Install dependencies
         run: npm ci
@@ -172,6 +177,7 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          env: false
 
       - name: Run hk security checks
         run: hk run check
