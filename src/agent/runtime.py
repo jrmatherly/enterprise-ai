@@ -181,7 +181,15 @@ You must ONLY respond using information from the <retrieved_context> section bel
 {context_text}
 </retrieved_context>
 
-When responding, cite sources from <retrieved_context> using the format: [Source: filename]."""
+When responding, cite sources from <retrieved_context> using the format: [Source: filename, Page X] (include page number if available).
+
+After your response, suggest 2-3 relevant follow-up questions the user might want to ask, based on the conversation context and available knowledge. Format them as:
+
+---
+**Related questions you might ask:**
+- [First follow-up question]
+- [Second follow-up question]
+- [Third follow-up question]"""
 
         return base_prompt
 

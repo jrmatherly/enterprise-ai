@@ -5,6 +5,7 @@ Includes optional semantic caching.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -179,6 +180,44 @@ class Retriever:
 
         return final_results
 
+    def _extract_page_numbers(self, text: str) -> list[int]:
+        """Extract page numbers from [Page X] markers in chunk text.
+
+        Args:
+            text: Chunk text that may contain [Page X] markers
+
+        Returns:
+            List of unique page numbers found, sorted
+        """
+        # Match [Page X] patterns (case insensitive)
+        pattern = r"\[Page\s+(\d+)\]"
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        if matches:
+            return sorted({int(m) for m in matches})
+        return []
+
+    def _format_page_reference(self, pages: list[int]) -> str:
+        """Format page numbers as a readable string.
+
+        Args:
+            pages: List of page numbers
+
+        Returns:
+            Formatted string like "Page 3" or "Pages 3-5" or "Pages 3, 5, 7"
+        """
+        if not pages:
+            return ""
+
+        if len(pages) == 1:
+            return f"Page {pages[0]}"
+
+        # Check if pages are consecutive
+        if pages == list(range(pages[0], pages[-1] + 1)):
+            return f"Pages {pages[0]}-{pages[-1]}"
+
+        # Non-consecutive pages
+        return f"Pages {', '.join(str(p) for p in pages)}"
+
     def format_context(
         self,
         chunks: list[RetrievedChunk],
@@ -203,10 +242,16 @@ class Retriever:
         for i, chunk in enumerate(chunks, 1):
             # Extract citation metadata
             filename = chunk.metadata.get("filename", "Unknown Document")
-            chunk_idx = chunk.chunk_index
 
-            # Build citation reference
-            citation_refs.append(f"[{i}] {filename} (Section {chunk_idx + 1})")
+            # Extract page numbers from chunk text
+            pages = self._extract_page_numbers(chunk.text)
+            page_ref = self._format_page_reference(pages)
+
+            # Build citation reference with page numbers if available
+            if page_ref:
+                citation_refs.append(f"[{i}] {filename}, {page_ref}")
+            else:
+                citation_refs.append(f"[{i}] {filename}")
 
             # Format chunk with source marker
             chunk_text = f"[{i}] {chunk.text}\n"
