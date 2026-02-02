@@ -32,24 +32,24 @@ mise run dev
 ## Development Workflow
 
 ```bash
-# Install git hooks (one-time)
-mise run hooks-install
-
-# Run linting before committing
-mise run lint          # Backend (Python/Ruff)
-mise run ui-lint       # Frontend (TypeScript/Biome)
-
-# Run full CI locally
-mise run ci
+# Check for issues before committing
+hk check
 
 # Auto-fix issues
-mise run hooks-fix
+hk fix
+
+# Commit (hooks run silently)
+git commit -m "feat(scope): description"
+
+# Push
+git push origin main
 ```
 
-Git hooks automatically enforce:
+Git hooks enforce:
 - **Pre-commit**: Linting, formatting, security checks
 - **Commit-msg**: [Conventional Commits](https://www.conventionalcommits.org/) format
-- **Pre-push**: Protected branch checks
+
+See [Contributing Guide](docs/CONTRIBUTING.md) for full workflow details.
 
 Services:
 - Frontend: http://localhost:3001
@@ -59,6 +59,7 @@ Services:
 
 ## Documentation
 
+- [Contributing Guide](docs/CONTRIBUTING.md) — Git workflow, commit conventions
 - [Development Setup](dev/SETUP.md)
 - [Frontend Architecture](docs/FRONTEND-ARCHITECTURE.md)
 - [Implementation Plan](IMPLEMENTATION-PLAN.md)

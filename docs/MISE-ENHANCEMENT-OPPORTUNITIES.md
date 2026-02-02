@@ -5,6 +5,7 @@ This document outlines enhancement opportunities identified through a comprehens
 ## Implementation Status ✅
 
 | Enhancement | Status | Details |
+
 |-------------|--------|---------|
 | **mise-hk (Git Hooks)** | ✅ Implemented | `hk.pkl` created with pre-commit, commit-msg, pre-push hooks |
 | **mise-action (CI/CD)** | ✅ Implemented | `.github/workflows/ci.yml` with full pipeline |
@@ -98,9 +99,13 @@ mise run hooks-install
 
 # Before committing - check for issues
 mise run hooks-check
+# or
+hk check
 
 # Auto-fix issues
 mise run hooks-fix
+# or
+hk fix
 
 # Run full CI locally before pushing
 mise run ci
@@ -109,11 +114,33 @@ mise run ci
 HK=0 git commit -m "emergency fix"
 ```
 
+## Note: Silent Hooks
+
+Git hooks run with output redirected to `/dev/null` to prevent Claude Code crashes from hk's verbose streaming output.
+
+**Trade-offs:**
+- ✅ Hooks still validate and block bad commits (exit code preserved)
+- ❌ No output visible during `git commit`
+- 💡 Run `hk check` or `mise run hooks-check` manually to see issues
+
+**Recommended workflow:**
+```bash
+# Check for issues first (see output)
+hk check
+
+# Fix any issues
+hk fix
+
+# Then commit (hooks run silently)
+git commit -m "feat: your message"
+```
+
 ---
 
 ## Configuration Files
 
 | File | Purpose |
+
 |------|---------|
 | `hk.pkl` | Git hooks configuration |
 | `mise.toml` | mise tasks, tools, environment |
