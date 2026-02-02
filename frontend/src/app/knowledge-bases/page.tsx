@@ -261,6 +261,8 @@ function KnowledgeBaseCard({
 function CreateKBModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [scope, setScope] = useState<
     "personal" | "team" | "department" | "organization"
   >("personal");
@@ -268,6 +270,7 @@ function CreateKBModal({ onClose }: { onClose: () => void }) {
 
   const nameId = useId();
   const descriptionId = useId();
+  const systemPromptId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,6 +281,7 @@ function CreateKBModal({ onClose }: { onClose: () => void }) {
         name: name.trim(),
         description: description.trim() || undefined,
         scope,
+        system_prompt: systemPrompt.trim() || undefined,
       });
       onClose();
     } catch (err) {
@@ -368,6 +372,49 @@ function CreateKBModal({ onClose }: { onClose: () => void }) {
                 "Everyone in your organization can access this knowledge base."}
             </p>
           </fieldset>
+
+          {/* Advanced Settings */}
+          <div className="border-t border-neutral-800 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm text-neutral-400 hover:text-neutral-300 transition-colors"
+            >
+              <svg
+                className={cn("size-4 transition-transform", showAdvanced && "rotate-90")}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+              </svg>
+              Advanced Settings
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4">
+                <label
+                  htmlFor={systemPromptId}
+                  className="mb-1.5 block text-sm font-medium text-neutral-300"
+                >
+                  Custom Instructions <span className="text-neutral-500">(optional)</span>
+                </label>
+                <textarea
+                  id={systemPromptId}
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="e.g., 'SM' refers to Store Manager. Always cite policy numbers when referencing company policies."
+                  rows={4}
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                />
+                <p className="mt-1.5 text-xs text-neutral-500">
+                  Define acronyms, terminology, or instructions for how the AI should interact with this knowledge base.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
