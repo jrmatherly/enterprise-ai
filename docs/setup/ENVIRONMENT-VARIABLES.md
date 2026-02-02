@@ -134,11 +134,17 @@ Available embedding models:
 ### Semantic Caching
 
 | Variable | Default | Required | Description |
-
 |----------|---------|----------|-------------|
 | `SEMANTIC_CACHE_ENABLED` | `true` | No | Enable semantic cache |
 | `SEMANTIC_CACHE_THRESHOLD` | `0.95` | No | Similarity threshold |
 | `SEMANTIC_CACHE_TTL` | `3600` | No | Cache TTL in seconds |
+
+### Session Management
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `MAX_SESSIONS_PER_USER` | `50` | No | Maximum active sessions per user |
+| `SESSION_AUTO_CLEANUP` | `true` | No | Auto-delete oldest sessions when limit exceeded |
 
 ### Langfuse SDK
 
